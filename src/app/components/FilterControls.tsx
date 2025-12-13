@@ -54,11 +54,7 @@ export function FilterControls({ filters, onFilterChange }: FilterControlsProps)
     if (severity === 5)
       return { label: "Critical (5)", color: "text-red-600", bg: "bg-red-50" };
     if (severity === 4)
-      return {
-        label: "High (4)",
-        color: "text-orange-600",
-        bg: "bg-orange-50",
-      };
+      return { label: "High (4)", color: "text-orange-600", bg: "bg-orange-50" };
     if (severity === 3)
       return { label: "Fair (3)", color: "text-yellow-700", bg: "bg-yellow-50" };
     if (severity === 2)
@@ -66,9 +62,9 @@ export function FilterControls({ filters, onFilterChange }: FilterControlsProps)
     return { label: "Minimal (1)", color: "text-green-600", bg: "bg-green-50" };
   };
 
-  // Maroon checkbox + white tick (relies on accent-color)
+  // ✅ Black checkbox styling
   const checkboxClass =
-    "w-4 h-4 rounded border-gray-300 accent-[#800020] focus:ring-[#800020] focus:ring-2";
+    "w-4 h-4 rounded border-gray-300 accent-black focus:ring-black focus:ring-2";
 
   const selectionSummary = useMemo(() => {
     const typeText =
@@ -85,38 +81,33 @@ export function FilterControls({ filters, onFilterChange }: FilterControlsProps)
   }, [filters.types, filters.severities]);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-[#E5D5C3] overflow-hidden">
-      {/* Header (click to collapse/expand) */}
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      {/* Header */}
       <button
         type="button"
         onClick={() => setIsExpanded((v) => !v)}
-        className={[
-          "w-full px-4 py-3",
-          "flex items-center justify-between",
-          "hover:bg-[#FAF3E8] transition-colors",
-        ].join(" ")}
+        className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
         aria-expanded={isExpanded}
       >
         <div className="flex items-center gap-2">
-          <Filter className="w-5 h-5 text-[#800020]" />
-          <span className="text-[#800020] font-semibold">Filters</span>
+          <Filter className="w-5 h-5 text-black" />
+          <span className="text-black font-semibold">Filters</span>
 
-          {/* subtle summary */}
-          <span className="ml-2 hidden sm:inline text-xs text-[#6B4423]/70">
+          <span className="ml-2 hidden sm:inline text-xs text-gray-500">
             {selectionSummary}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           {hasActiveFilters && (
-            <span className="text-xs px-2 py-1 rounded-full bg-[#FAF3E8] text-[#6B4423] border border-[#E5D5C3]">
+            <span className="text-xs px-2 py-1 rounded-full bg-white text-gray-700 border border-gray-200">
               Active
             </span>
           )}
 
           <ChevronDown
             className={[
-              "w-5 h-5 text-[#800020] transition-transform",
+              "w-5 h-5 text-black transition-transform",
               isExpanded ? "rotate-180" : "rotate-0",
             ].join(" ")}
           />
@@ -132,9 +123,9 @@ export function FilterControls({ filters, onFilterChange }: FilterControlsProps)
       >
         <div className="overflow-hidden">
           <div className="px-4 pb-4">
-            {/* Top row actions */}
+            {/* Top row */}
             <div className="flex items-center justify-between pt-3">
-              <div className="text-xs text-[#6B4423]/70">
+              <div className="text-xs text-gray-500">
                 Choose what you want to see on the map & table.
               </div>
 
@@ -144,7 +135,7 @@ export function FilterControls({ filters, onFilterChange }: FilterControlsProps)
                     e.stopPropagation();
                     clearAllFilters();
                   }}
-                  className="text-sm text-[#800020] hover:text-[#6B1B2B] flex items-center gap-1"
+                  className="text-sm text-black hover:opacity-70 flex items-center gap-1"
                   type="button"
                 >
                   <X className="w-4 h-4" />
@@ -154,9 +145,9 @@ export function FilterControls({ filters, onFilterChange }: FilterControlsProps)
             </div>
 
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Incident Type Filter */}
+              {/* Incident Type */}
               <div>
-                <h4 className="text-[#4A1A1A] mb-2 font-semibold">
+                <h4 className="text-black mb-2 font-semibold">
                   Incident Type
                 </h4>
 
@@ -172,9 +163,9 @@ export function FilterControls({ filters, onFilterChange }: FilterControlsProps)
                           "flex items-center justify-between gap-3 cursor-pointer",
                           "p-2 rounded-lg border transition-colors",
                           checked
-                            ? "bg-[#FAF3E8] border-[#E5D5C3]"
-                            : "bg-white border-[#EFE5DA]",
-                          "hover:bg-[#FAF3E8]",
+                            ? "bg-white border-gray-300"
+                            : "bg-white border-gray-200",
+                          "hover:bg-gray-50",
                         ].join(" ")}
                       >
                         <div className="flex items-center gap-2">
@@ -184,27 +175,26 @@ export function FilterControls({ filters, onFilterChange }: FilterControlsProps)
                             onChange={() => toggleType(type)}
                             className={checkboxClass}
                           />
-                          <span className="text-[#6B4423]">{type}</span>
+                          <span className="text-gray-700">{type}</span>
                         </div>
 
-                        <span className="text-xs text-[#6B4423]/60">Type</span>
+                        <span className="text-xs text-gray-400">Type</span>
                       </label>
                     );
                   })}
                 </div>
 
-                {/* Nicer tip */}
-                <div className="mt-3 rounded-lg border border-[#E5D5C3] bg-[#FAF3E8] px-3 py-2">
-                  <p className="m-0 text-xs text-[#6B4423]">
+                <div className="mt-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
+                  <p className="m-0 text-xs text-gray-600">
                     Leaving all types checked shows everything. Untick a type to
                     hide it.
                   </p>
                 </div>
               </div>
 
-              {/* Severity Filter */}
+              {/* Severity */}
               <div>
-                <h4 className="text-[#4A1A1A] mb-2 font-semibold">
+                <h4 className="text-black mb-2 font-semibold">
                   Severity Level
                 </h4>
 
@@ -220,9 +210,9 @@ export function FilterControls({ filters, onFilterChange }: FilterControlsProps)
                           "flex items-center justify-between gap-3 cursor-pointer",
                           "p-2 rounded-lg border transition-colors",
                           checked
-                            ? `${info.bg} border-[#E5D5C3]`
-                            : "bg-white border-[#EFE5DA]",
-                          "hover:bg-[#FAF3E8]",
+                            ? `${info.bg} border-gray-300`
+                            : "bg-white border-gray-200",
+                          "hover:bg-gray-50",
                         ].join(" ")}
                       >
                         <div className="flex items-center gap-2">
@@ -235,7 +225,7 @@ export function FilterControls({ filters, onFilterChange }: FilterControlsProps)
                           <span className={info.color}>{info.label}</span>
                         </div>
 
-                        <span className="text-xs text-[#6B4423]/60">
+                        <span className="text-xs text-gray-400">
                           Severity
                         </span>
                       </label>
@@ -243,8 +233,8 @@ export function FilterControls({ filters, onFilterChange }: FilterControlsProps)
                   })}
                 </div>
 
-                <div className="mt-3 rounded-lg border border-[#E5D5C3] bg-[#FAF3E8] px-3 py-2">
-                  <p className="m-0 text-xs text-[#6B4423]">
+                <div className="mt-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
+                  <p className="m-0 text-xs text-gray-600">
                     Keep “High” and “Critical” selected to focus on urgent
                     incidents.
                   </p>
@@ -252,8 +242,7 @@ export function FilterControls({ filters, onFilterChange }: FilterControlsProps)
               </div>
             </div>
 
-            {/* Optional bottom hint */}
-            <div className="mt-4 text-xs text-[#6B4423]/70">
+            <div className="mt-4 text-xs text-gray-500">
               Tip: Click the “Filters” header again to collapse this panel.
             </div>
           </div>
