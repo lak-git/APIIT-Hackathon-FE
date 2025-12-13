@@ -13,6 +13,7 @@ interface IncidentContextValue {
   setIncidents: React.Dispatch<React.SetStateAction<Incident[]>>;
   registerFieldIncident: (report: IncidentReport, reporterName?: string) => Incident;
   resetToMock: () => void;
+  sync: () => Promise<void>;
 }
 
 const IncidentContext = createContext<IncidentContextValue | undefined>(undefined);
@@ -45,7 +46,7 @@ export const mapReportToIncident = (
 
 export function IncidentProvider({ children }: { children: React.ReactNode }) {
   // 1. Hook for background syncing (Dexie -> Supabase)
-  useSyncManager();
+  const { sync } = useSyncManager();
 
   // 2. State for Remote Data (Source of Truth)
   const [remoteIncidents, setRemoteIncidents] = useState<Incident[]>([]);
@@ -172,8 +173,9 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
       setIncidents,
       registerFieldIncident,
       resetToMock,
+      sync
     }),
-    [incidents, registerFieldIncident, resetToMock],
+    [incidents, registerFieldIncident, resetToMock, sync],
   );
 
   return <IncidentContext.Provider value={value}>{children}</IncidentContext.Provider>;

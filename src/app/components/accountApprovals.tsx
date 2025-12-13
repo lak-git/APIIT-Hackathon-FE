@@ -12,6 +12,9 @@ interface AccountApproval {
   region: string;
 }
 
+interface AccountApprovalsProps {
+}
+
 const MOCK_APPROVALS: AccountApproval[] = [
   {
     id: "1",
@@ -35,7 +38,7 @@ const MOCK_APPROVALS: AccountApproval[] = [
   },
 ];
 
-export function AccountApprovals() {
+export function AccountApprovals({ }: AccountApprovalsProps) {
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 5;
 
@@ -53,13 +56,15 @@ export function AccountApprovals() {
   return (
     <div className="bg-white rounded-lg shadow-md border border-[#E5D5C3] overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-[#E5D5C3] bg-[#FAF3E8]">
-        <h3 className="text-[#800020] font-semibold text-sm">
-          Pending Responder Account Approvals
-        </h3>
-        <p className="text-xs text-[#6B4423] mt-1">
-          Review and approve verified responders before granting system access.
-        </p>
+      <div className="px-4 py-3 border-b border-[#E5D5C3] bg-[#FAF3E8] flex justify-between items-center">
+        <div>
+          <h3 className="text-[#800020] font-semibold text-sm">
+            Pending Responder Account Approvals
+          </h3>
+          <p className="text-xs text-[#6B4423] mt-1">
+            Review and approve verified responders before granting system access.
+          </p>
+        </div>
       </div>
 
       {/* Table wrapper (horizontal scroll) */}
