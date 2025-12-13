@@ -133,11 +133,18 @@ export default function EmergencyResponseRoute() {
   }, [isOnline]);
 
   const handleLogin = async (email: string, _password: string) => {
+
+
     const user = await getCurrentUser();
+
+
     if (!user) return;
 
+    // Set custom storage manually - why? AuthProvider does "sb-session"
+    // storage.ts uses "field_responder_..."
     storage.setAuthToken("supabase-session");
     storage.setUser({ email, name: email.split("@")[0] });
+
 
     const profile = await getUserProfile(user.id);
     if (profile?.is_admin) {
