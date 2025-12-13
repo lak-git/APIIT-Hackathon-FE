@@ -66,9 +66,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const syncAuth = async () => {
             const { data: { session: currentSession } } = await supabase.auth.getSession();
+            const hasLocalSession = localStorage.getItem("sb-session");
 
-            if (currentSession) {
-                // Valid session
+            if (currentSession && hasLocalSession) {
+                // Valid session AND we intended to be logged in
                 setSession(currentSession);
                 setUser(currentSession.user);
 
@@ -83,10 +84,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 localStorage.setItem("sb-isAdmin", String(adminStatus));
 
                 setIsAuthenticated(true);
+            } else if (currentSession && !hasLocalSession) {
+                // Supabase thinks we are logged in, but our local app says we logged out.
+                // Force logout on Supabase to match local state.
+                console.warn("Supabase session exists but local session missing. Forcing logout.");
+                await supabase.auth.signOut();
+                handleLogout(); // Ensure local state is clean
             } else {
-                // Invalid session, potential expiry.
-                // If we are online and Supabase says no session, we should probably logout or stay in public mode.
-                // If we previously thought we were logged in (from cache), this means the cache is stale/invalid.
+                // Invalid session
                 if (isAuthenticated) {
                     console.warn("Online but no Supabase session - clearing local session");
                     handleLogout();
