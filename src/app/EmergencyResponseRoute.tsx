@@ -11,6 +11,7 @@ import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { useLiveQuery } from "dexie-react-hooks";
 import { storage } from "./utils/storage";
 import { db, type IncidentReport } from "../db/db";
+import { getCurrentUser, getUserProfile, logout } from "./services/authService";
 
 import {
   CheckCircle2,
@@ -56,7 +57,7 @@ function toastMaroon(
 export default function EmergencyResponseRoute() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
+
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
   const isOnline = useOnlineStatus();
   const { registerFieldIncident } = useIncidentData();
@@ -78,12 +79,27 @@ export default function EmergencyResponseRoute() {
   );
 
   useEffect(() => {
-    // Check if user is already authenticated
-    const token = storage.getAuthToken();
-    if (token) {
-      setIsAuthenticated(true);
-      setCurrentScreen("home");
-    }
+    const checkAuth = async () => {
+      const user = await getCurrentUser();
+      if (user) {
+        setIsAuthenticated(true);
+        const profile = await getUserProfile(user.id);
+
+        // Update local storage for compatibility
+        storage.setAuthToken("supabase-session"); // Placeholder or actual token if needed by other parts
+        storage.setUser({
+          email: user.email || "",
+          name: user.email?.split("@")[0] || "User"
+        });
+
+        if (profile?.isAdmin) {
+          setCurrentScreen("reports");
+        } else {
+          setCurrentScreen("home");
+        }
+      }
+    };
+    checkAuth();
 
     // Register synced reports from Dexie to the IncidentProvider
     reports
@@ -111,19 +127,32 @@ export default function EmergencyResponseRoute() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline]);
 
-  const handleLogin = (email: string, _password: string) => {
-    // Mock authentication
-    const mockToken = `token_${Date.now()}`;
-    storage.setAuthToken(mockToken);
+  const handleLogin = async (email: string, _password: string) => {
+    const user = await getCurrentUser();
+    if (!user) return;
+
+    storage.setAuthToken("supabase-session");
     storage.setUser({ email, name: email.split("@")[0] });
 
     setIsAuthenticated(true);
-    setCurrentScreen("home");
+
+    // Fetch profile and direct
+    const profile = await getUserProfile(user.id);
+    if (profile?.isAdmin) {
+      setCurrentScreen("reports");
+    } else {
+      setCurrentScreen("home");
+    }
 
     toastMaroon("Logged in successfully", { icon: icons.login });
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
     storage.clearAuthToken();
     storage.clearUser();
     setIsAuthenticated(false);

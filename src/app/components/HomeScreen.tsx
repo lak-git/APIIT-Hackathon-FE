@@ -4,6 +4,7 @@ import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { ConnectivityBanner } from './ConnectivityBanner';
 
+
 interface HomeScreenProps {
   isOnline: boolean;
   pendingCount: number;
@@ -12,17 +13,17 @@ interface HomeScreenProps {
   onLogout: () => void;
 }
 
-export function HomeScreen({ 
-  isOnline, 
-  pendingCount, 
-  onCreateIncident, 
+export function HomeScreen({
+  isOnline,
+  pendingCount,
+  onCreateIncident,
   onViewReports,
   onLogout
 }: HomeScreenProps) {
   return (
     <div className="min-h-screen flex flex-col">
       <ConnectivityBanner isOnline={isOnline} />
-      
+
       <div className="flex-1 p-6 space-y-6">
         <div className="flex items-start justify-between">
           <div>
@@ -36,7 +37,7 @@ export function HomeScreen({
 
         <div className="space-y-4">
           <Card className="p-6">
-            <Button 
+            <Button
               onClick={onCreateIncident}
               className="w-full h-auto py-6 gap-3"
               size="lg"
@@ -47,7 +48,7 @@ export function HomeScreen({
           </Card>
 
           <Card className="p-6">
-            <Button 
+            <Button
               onClick={onViewReports}
               variant="outline"
               className="w-full h-auto py-6 gap-3 relative"
@@ -56,7 +57,7 @@ export function HomeScreen({
               <FileText className="w-6 h-6" />
               <span>Pending Reports</span>
               {pendingCount > 0 && (
-                <Badge 
+                <Badge
                   variant="destructive"
                   className="absolute -top-2 -right-2 h-7 min-w-[1.75rem] rounded-full"
                 >
@@ -73,7 +74,7 @@ export function HomeScreen({
             <div>
               <h4 className="mb-1">Offline-First Design</h4>
               <p className="text-sm text-muted-foreground m-0">
-                All incident reports are saved locally first. When you're online, 
+                All incident reports are saved locally first. When you're online,
                 they will automatically sync to the server.
               </p>
             </div>
