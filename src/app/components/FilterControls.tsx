@@ -1,5 +1,5 @@
 import { Filter, X } from "lucide-react";
-import type { IncidentType } from "../types/incident";
+import type { IncidentType } from "../../types/incident";
 
 interface FilterControlsProps {
   filters: {

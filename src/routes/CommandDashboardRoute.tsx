@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { SummaryBadges } from "../components/SummaryBadges";
-import { FilterControls } from "../components/FilterControls";
-import { MapView } from "../components/MapView";
-import { IncidentTable } from "../components/IncidentTable";
-import { IncidentDetailPanel } from "../components/IncidentDetailPanel";
+import { SummaryBadges } from "../app/components/SummaryBadges";
+import { FilterControls } from "../app/components/FilterControls";
+import { MapView } from "../app/components/MapView";
+import { IncidentTable } from "../app/components/IncidentTable";
+import { IncidentDetailPanel } from "../app/components/IncidentDetailPanel";
 import type { Incident } from "../types/incident";
 import { useIncidentData } from "../providers/IncidentProvider";
 

@@ -1,4 +1,4 @@
-import type { Incident } from "../types/incident";
+import type { Incident } from "../../types/incident";
 import { X, MapPin, Clock, AlertTriangle, User } from "lucide-react";
 
 interface IncidentDetailPanelProps {
