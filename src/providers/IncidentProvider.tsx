@@ -3,7 +3,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 
 import type { Incident } from "../types/incident";
 import type { IncidentReport } from "../app/utils/storage";
-import { useSyncManager } from "../hooks/useSyncManager";
+import { useSyncManager } from "../app/hooks/useSyncManager";
 import { db } from "../db/db";
 import { storage } from "../app/utils/storage";
 
