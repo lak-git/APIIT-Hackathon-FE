@@ -64,7 +64,7 @@ export default function EmergencyResponseRoute() {
 
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
   const isOnline = useOnlineStatus();
-  const { registerFieldIncident } = useIncidentData();
+  const { sync } = useIncidentData();
   const { canInstall: canInstallPWA, promptInstall, dismissPrompt } = usePWAInstallPrompt();
   const shouldShowInstallBanner = canInstallPWA && !installBannerDismissed;
 
@@ -174,36 +174,10 @@ export default function EmergencyResponseRoute() {
 
     // Attempt to sync if online
     if (isOnline) {
-      setTimeout(() => syncSingleReport(newReport.id), 1000);
+      sync();
     }
   };
 
-  const syncSingleReport = async (reportId: string) => {
-    const report = reports.find((r) => r.id === reportId);
-    if (!report || !isOnline) return;
-
-    // Update status to syncing
-    await db.reports.update(reportId, { status: "syncing" });
-
-    // Simulate API call
-    setTimeout(async () => {
-      const success = Math.random() > 0.1; // 90% success rate
-
-      if (success) {
-        const syncedReport: IncidentReport = { ...report, status: "synced" };
-
-        // React UI updates automatically via useLiveQuery
-        registerFieldIncident(syncedReport, storage.getUser()?.name);
-
-        // ✅ Report saved successfully / synced successfully
-        toastMaroon("Report synced successfully", { icon: icons.success });
-      } else {
-        await db.reports.update(reportId, { status: "failed" });
-
-        toastMaroon("Sync failed - will retry later", { icon: icons.error });
-      }
-    }, 2000);
-  };
 
   const syncReports = async () => {
     if (!isOnline) {
@@ -220,20 +194,18 @@ export default function EmergencyResponseRoute() {
       return;
     }
 
-    // Sync each report
-    for (const report of unsyncedReports) {
-      syncSingleReport(report.id);
-    }
+    toastMaroon("Syncing reports...", { icon: icons.online });
+    await sync();
   };
 
-  const handleRetrySync = (reportId: string) => {
+  const handleRetrySync = async () => {
     if (!isOnline) {
       toastMaroon("Cannot retry while offline", { icon: icons.offline });
       return;
     }
 
     toastMaroon("Retrying sync...", { icon: icons.retry });
-    syncSingleReport(reportId);
+    await sync();
   };
 
   const pendingCount = reports.filter((r) => r.status !== "synced").length;
@@ -323,7 +295,7 @@ export default function EmergencyResponseRoute() {
           reports={reports}
           onBack={() => setCurrentScreen("home")}
           onSync={syncReports}
-          onRetry={handleRetrySync}
+          onRetry={() => handleRetrySync()}
         />
       )}
 
