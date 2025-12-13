@@ -15,6 +15,7 @@ interface IncidentContextValue {
   setIncidents: React.Dispatch<React.SetStateAction<Incident[]>>;
   registerFieldIncident: (report: IncidentReport, reporterName?: string) => Incident;
   resetToMock: () => void;
+  resolveIncident: (id: string) => Promise<void>;
   sync: () => Promise<void>;
 }
 
@@ -211,15 +212,33 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
   const resetToMock = useCallback(() => {
   }, []);
 
+  const resolveIncident = useCallback(async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('incidents')
+        .update({ status: 'Resolved' })
+        .eq('id', id);
+
+      if (error) {
+        console.error("Failed to mark incident as done:", error);
+        throw error;
+      }
+      // Optimistic update could happen here, but Realtime subscription should handle it.
+    } catch (e) {
+      console.error("Error resolving incident:", e);
+    }
+  }, []);
+
   const value = useMemo(
     () => ({
       incidents,
       setIncidents,
       registerFieldIncident,
       resetToMock,
+      resolveIncident,
       sync
     }),
-    [incidents, registerFieldIncident, resetToMock, sync],
+    [incidents, registerFieldIncident, resetToMock, resolveIncident, sync],
   );
 
   return <IncidentContext.Provider value={value}>{children}</IncidentContext.Provider>;

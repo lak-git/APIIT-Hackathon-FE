@@ -1,5 +1,7 @@
 import type { Incident } from "../../types/incident";
-import { X, MapPin, Clock, AlertTriangle, User } from "lucide-react";
+import { X, MapPin, Clock, AlertTriangle, User, CheckCircle } from "lucide-react";
+import { useAuth } from "../../providers/AuthProvider";
+import { useIncidentData } from "../../providers/IncidentProvider";
 
 interface IncidentDetailPanelProps {
   incident: Incident | null;
@@ -12,6 +14,9 @@ export function IncidentDetailPanel({
   isOpen,
   onClose,
 }: IncidentDetailPanelProps) {
+  const { isAdmin } = useAuth();
+  const { resolveIncident } = useIncidentData();
+
   const getSeverityLabel = (severity: number) => {
     if (severity === 5)
       return { label: "Critical", color: "text-red-600 bg-red-100" };
@@ -89,13 +94,12 @@ export function IncidentDetailPanel({
                   </h3>
 
                   <div
-                    className={`inline-block px-2 py-1 rounded text-sm ${
-                      incident.status === "Active"
+                    className={`inline-block px-2 py-1 rounded text-sm ${incident.status === "Active"
                         ? "bg-red-100 text-red-800"
                         : incident.status === "Responding"
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-green-100 text-green-800"
-                    }`}
+                          ? "bg-blue-100 text-blue-800"
+                          : "bg-green-100 text-green-800"
+                      }`}
                   >
                     {incident.status}
                   </div>
@@ -170,6 +174,17 @@ export function IncidentDetailPanel({
             >
               Dispatch Response Team
             </button>
+
+            {isAdmin && incident && incident.status !== 'Resolved' && (
+              <button
+                className="w-full mt-2 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                type="button"
+                onClick={() => resolveIncident(incident.id)}
+              >
+                <CheckCircle className="w-4 h-4" />
+                Mark as Done
+              </button>
+            )}
           </div>
         </div>
       </div>
