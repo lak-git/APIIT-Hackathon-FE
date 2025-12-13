@@ -113,26 +113,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
             } else if (currentSession && !hasLocalSession) {
                 // Supabase thinks we are logged in, but our local app says we logged out.
-                // PREVIOUS: Force logout.
-                // NEW: Trust Supabase. If we have a valid session on the client, use it.
-                // This fixes race conditions where login happens before local storage is written,
-                // and also handles cases where logout failed to clear the server/client state.
-                console.warn("[AuthProvider] Supabase session exists but local session missing. Restoring local state from Supabase.");
-
-                setSession(currentSession);
-                setUser(currentSession.user);
-
-                // Fetch profile
-                const profile = await getUserProfile(currentSession.user.id);
-                const adminStatus = profile?.is_admin || false;
-                setIsAdmin(adminStatus);
-
-                // Restore cache
-                localStorage.setItem("sb-session", JSON.stringify(currentSession));
-                localStorage.setItem("sb-user", JSON.stringify(currentSession.user));
-                localStorage.setItem("sb-isAdmin", String(adminStatus));
-
-                setIsAuthenticated(true);
+                // This means the user intentionally logged out but Supabase session wasn't cleared.
+                // We should sign out from Supabase to respect the user's logout intent.
+                console.warn("[AuthProvider] Supabase session exists but local session missing. Signing out from Supabase.");
+                try {
+                    await supabase.auth.signOut();
+                } catch (e) {
+                    console.error("[AuthProvider] Failed to sign out from Supabase", e);
+                }
+                // Ensure local state is cleared
+                setUser(null);
+                setSession(null);
+                setIsAdmin(false);
+                setIsAuthenticated(false);
             } else {
                 // Invalid session
                 if (isAuthenticated) {
