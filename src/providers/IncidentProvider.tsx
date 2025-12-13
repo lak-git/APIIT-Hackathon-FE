@@ -7,6 +7,8 @@ import { useSyncManager } from "../app/hooks/useSyncManager";
 import { db } from "../db/db";
 import { storage } from "../app/utils/storage";
 import { supabase } from "../supabaseClient";
+// Import useAuth to access the session state
+import { useAuth } from "./AuthProvider";
 
 interface IncidentContextValue {
   incidents: Incident[];
@@ -45,126 +47,168 @@ export const mapReportToIncident = (
 };
 
 export function IncidentProvider({ children }: { children: React.ReactNode }) {
-  // 1. Hook for background syncing (Dexie -> Supabase)
+
+  const { session, isLoading } = useAuth();
+
+  // 2. Hook for background syncing (Dexie -> Supabase)
   const { sync } = useSyncManager();
 
-  // 2. State for Remote Data (Source of Truth)
+  // 3. State for Remote Data (Source of Truth)
   const [remoteIncidents, setRemoteIncidents] = useState<Incident[]>([]);
 
-  // 3. State for Local Data (Pending/Offline items)
-  // Directly query Dexie for all reports
+  // 4. State for Local Data (Pending/Offline items)
   const localReports = useLiveQuery(() => db.reports.toArray()) ?? [];
 
-  // 4. Fetch Trigger & Realtime Subscription
+  // 5. Fetch Trigger & Realtime Subscription
   useEffect(() => {
-    // A. Initial Fetch
-    const fetchIncidents = async () => {
-      const { data, error } = await supabase
-        .from('incidents')
-        .select('*')
-        .order('created_at', { ascending: false });
+    let isMounted = true;
+    if (isLoading) return;
 
-      if (error) {
-        console.error("Error fetching incidents:", error);
-      } else if (data) {
-        const mappedRemote: Incident[] = data.map((row: any) => ({
-          id: row.id, // UUID from Supabase
-          type: row.incident_type as IncidentType,
-          severity: Number(row.severity) as 1 | 2 | 3 | 4 | 5,
-          timestamp: new Date(row.created_at), // Using created_at as primary timestamp
-          location: {
-            lat: row.latitude,
-            lng: row.longitude,
-            address: row.address || FALLBACK_ADDRESS,
-          },
-          description: row.description || "Command Center Report",
-          imageUrl: row.image_url,
-          status: 'Active', // Default status for remote items unless we fetch row.status
-          reportedBy: "Command Center", // or row.reported_by if available
-        }));
-        setRemoteIncidents(mappedRemote);
+    // A. Initial Fetch (Using Hybrid approach: Prefer Raw REST if SDK is unreliable)
+    const fetchIncidents = async () => {
+      console.log(`[IncidentProvider] Fetching... Session exists: ${!!session?.access_token}`);
+
+      try {
+        // 0. Ensure Supabase Client is Authenticated
+        if (session?.access_token) {
+          // SDK Fallback: Use Raw REST Fetch for reliable initial load
+          // bypassing potential SDK WebSocket/Client state issues.
+          const rawUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/incidents?select=*&order=created_at.desc`;
+
+          try {
+            console.log("[IncidentProvider] Attempting fetch via Supabase REST API...");
+            const rawResponse = await fetch(rawUrl, {
+              method: 'GET',
+              headers: {
+                'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${session.access_token}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (rawResponse.ok) {
+              const rawData = await rawResponse.json();
+              console.log(`[IncidentProvider] REST API Success. Loaded ${rawData.length} incidents.`);
+
+              if (isMounted) {
+                const mappedRemote: Incident[] = rawData.map((row: any) => ({
+                  id: row.id,
+                  type: row.incident_type as IncidentType,
+                  severity: Number(row.severity) as 1 | 2 | 3 | 4 | 5,
+                  timestamp: new Date(row.created_at),
+                  location: {
+                    lat: row.latitude,
+                    lng: row.longitude,
+                    address: row.address || FALLBACK_ADDRESS,
+                  },
+                  description: row.description || "Command Center Report",
+                  imageUrl: row.image_url,
+                  status: 'Active',
+                  reportedBy: "Command Center",
+                }));
+                setRemoteIncidents(mappedRemote);
+                return; // Exit successfully
+              }
+            } else {
+              console.warn(`[IncidentProvider] REST API Failed: ${rawResponse.status}`);
+            }
+          } catch (rawErr) {
+            console.error("[IncidentProvider] REST API Error:", rawErr);
+          }
+        }
+
+        // Fallback to SDK if REST failed (or if we decide to keep it as backup)
+        // But since we know SDK hangs, we basically just log here or skip.
+        // For now, we'll skip the hanging SDK query to avoid the timeout error log.
+        console.warn("[IncidentProvider] SDK Fetch skipped (relied on REST API).");
+
+      } catch (err) {
+        console.error("[IncidentProvider] UNEXPECTED ERROR in fetchIncidents:", err);
       }
     };
 
     fetchIncidents();
 
     // B. Realtime Subscription
-    const channel = supabase
-      .channel('public:incidents')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'incidents' },
-        (payload) => {
-          const newRow = payload.new as any;
-          const newIncident: Incident = {
-            id: newRow.id,
-            type: newRow.incident_type as IncidentType,
-            severity: Number(newRow.severity) as 1 | 2 | 3 | 4 | 5,
-            timestamp: new Date(newRow.created_at),
-            location: {
-              lat: newRow.latitude,
-              lng: newRow.longitude,
-              address: newRow.address || FALLBACK_ADDRESS,
-            },
-            description: newRow.description || "Realtime Report",
-            imageUrl: newRow.image_url,
-            status: 'Active',
-            reportedBy: "Realtime Update",
-          };
+    // Attempting to re-enable Realtime. If this causes issues, it can be disabled.
+    try {
+      const channel = supabase
+        .channel('public:incidents')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'incidents' },
+          (payload) => {
+            const newRow = payload.new as any;
+            console.log("[IncidentProvider] Realtime Update Received:", newRow.id);
 
-          setRemoteIncidents((prev) => [newIncident, ...prev]);
-        }
-      )
-      .subscribe();
+            const newIncident: Incident = {
+              id: newRow.id,
+              type: newRow.incident_type as IncidentType,
+              severity: Number(newRow.severity) as 1 | 2 | 3 | 4 | 5,
+              timestamp: new Date(newRow.created_at),
+              location: {
+                lat: newRow.latitude,
+                lng: newRow.longitude,
+                address: newRow.address || FALLBACK_ADDRESS,
+              },
+              description: newRow.description || "Realtime Report",
+              imageUrl: newRow.image_url,
+              status: 'Active',
+              reportedBy: "Realtime Update",
+            };
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+            setRemoteIncidents((prev) => [newIncident, ...prev]);
+          }
+        )
+        .subscribe();
 
-  // 5. Merge Logic (The Core Requirement)
+      return () => {
+        isMounted = false;
+        supabase.removeChannel(channel);
+      };
+    } catch (realtimeErr) {
+      console.error("[IncidentProvider] Realtime Subscription Error:", realtimeErr);
+      return () => { isMounted = false; };
+    }
+
+  }, [session?.access_token, isLoading]);
+
+  // 6. Merge Logic
   const incidents = useMemo(() => {
-    // Step A: Start with Remote Incidents
     const merged = [...remoteIncidents];
 
-    // Step B: Filter Local Reports
-    // ONLY include items that are NOT 'synced'.
-    // If it's 'synced', it's already in the remoteIncidents list (fetched from Supabase).
-    // Including it again would cause duplicates/double pins.
     const unsyncedLocals = localReports.filter(
       (r) => r.status === 'local' || r.status === 'pending' || r.status === 'failed'
     );
 
-    // Step D: Map remaining local reports
     const mappedLocals = unsyncedLocals.map((r) =>
       mapReportToIncident(r, storage.getUser()?.name)
     );
 
-    // Combine
     const all = [...mappedLocals, ...merged];
 
-    // Step E: Sort by timestamp descending
-    // (Ensure newest items, whether local or remote, are top)
     return all.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
   }, [remoteIncidents, localReports]);
 
-  // Backward compatibility / No-op setters
+  // Debug: Log when context value changes
+  useEffect(() => {
+    // Keep this log for now to confirm stability to the user
+    console.log("[IncidentProvider] Incidents state updated. Count:", incidents.length);
+  }, [incidents]);
+
   const setIncidents: React.Dispatch<React.SetStateAction<Incident[]>> = useCallback(() => {
     console.warn("setIncidents is deprecated. Modify Supabase or Dexie directly.");
   }, []);
 
   const registerFieldIncident = useCallback(
     (report: IncidentReport, reporterName?: string) => {
-      // Local UI update helper, still relevant for immediate optimistic feedback 
-      // if we weren't using useLiveQuery. But we are.
       return mapReportToIncident(report, reporterName);
     },
     [],
   );
 
   const resetToMock = useCallback(() => {
-    // No-op
   }, []);
 
   const value = useMemo(

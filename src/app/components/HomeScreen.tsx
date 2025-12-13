@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { FileText, Plus, Shield, ChevronRight } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -10,6 +11,7 @@ interface HomeScreenProps {
   onCreateIncident: () => void;
   onViewReports: () => void;
   onLogout: () => void;
+  remoteIncidents?: any[];
 }
 
 export function HomeScreen({
@@ -18,7 +20,12 @@ export function HomeScreen({
   onCreateIncident,
   onViewReports,
   onLogout,
+  remoteIncidents = [],
 }: HomeScreenProps) {
+  useEffect(() => {
+    console.log(`[HomeScreen] Mounted. Incidents received: ${remoteIncidents.length}`);
+  }, [remoteIncidents.length]);
+
   return (
     <div className="min-h-screen flex flex-col bg-white w-full">
       <ConnectivityBanner isOnline={isOnline} />
@@ -117,6 +124,37 @@ export function HomeScreen({
               </div>
             </Button>
           </Card>
+        </div>
+
+        {/* Remote Active Incidents List */}
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold text-black mb-4">Active Incidents</h2>
+          <div className="space-y-3">
+            {remoteIncidents.length === 0 ? (
+              <p className="text-black/60 text-sm">No active incidents found.</p>
+            ) : (
+              remoteIncidents.map((incident: any) => (
+                <Card key={incident.id} className="p-4 border border-black/10 shadow-sm bg-white">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="outline" className="border-black/20 text-black">
+                          {incident.type}
+                        </Badge>
+                        <span className="text-xs text-black/50">
+                          {new Date(incident.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-black/80 line-clamp-2">
+                        {incident.description}
+                      </p>
+                    </div>
+                    <div className={`w-2 h-2 rounded-full ${incident.status === 'Active' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
         </div>
       </div>
 
