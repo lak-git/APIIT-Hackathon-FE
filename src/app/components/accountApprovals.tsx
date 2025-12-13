@@ -7,7 +7,6 @@ interface AccountApproval {
   email: string;
   phone: string;
   organization: string;
-  employeeId: string;
   designation: string;
   region: string;
 }
@@ -21,7 +20,6 @@ const MOCK_APPROVALS: AccountApproval[] = [
     email: "ruwan@disaster.gov.lk",
     phone: "+94 77 123 4567",
     organization: "Disaster Management Centre",
-    employeeId: "DMC-2387",
     designation: "Field Officer",
     region: "Ratnapura",
   },
@@ -31,7 +29,6 @@ const MOCK_APPROVALS: AccountApproval[] = [
     email: "nadeesha@police.lk",
     phone: "+94 71 456 9874",
     organization: "Sri Lanka Police",
-    employeeId: "SLP-7741",
     designation: "Inspector",
     region: "Kalawana",
   },
@@ -77,7 +74,7 @@ export function AccountApprovals({}: AccountApprovalsProps) {
           "[&::-webkit-scrollbar-thumb:hover]:bg-gray-400",
         ].join(" ")}
       >
-        <table className="min-w-[1200px] w-full border-separate border-spacing-0">
+        <table className="min-w-[1100px] w-full border-separate border-spacing-0">
           <thead className="bg-white sticky top-0 z-10 border-b border-gray-300">
             <tr>
               {[
@@ -85,7 +82,6 @@ export function AccountApprovals({}: AccountApprovalsProps) {
                 "Email",
                 "Phone",
                 "Organization",
-                "Employee ID",
                 "Designation",
                 "Region",
                 "Action",
@@ -120,10 +116,6 @@ export function AccountApprovals({}: AccountApprovalsProps) {
 
                 <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                   {user.organization}
-                </td>
-
-                <td className="px-4 py-3 text-sm font-mono text-black whitespace-nowrap">
-                  {user.employeeId}
                 </td>
 
                 <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
