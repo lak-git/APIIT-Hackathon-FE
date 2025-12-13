@@ -1,8 +1,7 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, useEffect } from "react";
 
 import type { Incident } from "../types/incident";
 import type { IncidentReport } from "../app/utils/storage";
-import { mockIncidents } from "../data/mockIncidents";
 
 interface IncidentContextValue {
   incidents: Incident[];
@@ -38,26 +37,39 @@ export const mapReportToIncident = (
   };
 };
 
+import { db } from "../db/db";
+import { useLiveQuery } from "dexie-react-hooks";
+import { storage } from "../app/utils/storage";
+
 export function IncidentProvider({ children }: { children: React.ReactNode }) {
-  const [incidents, setIncidents] = useState<Incident[]>(() => [...mockIncidents]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+
+  // Directly query Dexie for all reports
+  const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
+
+  // Sync Dexie reports to local state whenever they change
+  useEffect(() => {
+    if (reports) {
+      const mappedIncidents = reports.map((r) =>
+        mapReportToIncident(r, storage.getUser()?.name)
+      );
+      setIncidents(mappedIncidents);
+    }
+  }, [reports]);
 
   const registerFieldIncident = useCallback(
     (report: IncidentReport, reporterName?: string) => {
-      const mapped = mapReportToIncident(report, reporterName);
-      setIncidents((prev) => {
-        const alreadyExists = prev.some((incident) => incident.id === mapped.id);
-        if (alreadyExists) {
-          return prev;
-        }
-        return [mapped, ...prev];
-      });
-      return mapped;
+      // This might now be redundant if we rely on useLiveQuery, 
+      // but keeping it for compatibility or immediate UI updates if needed.
+      // Logic: Just rely on the useEffect above to catch the DB change.
+      return mapReportToIncident(report, reporterName);
     },
     [],
   );
 
   const resetToMock = useCallback(() => {
-    setIncidents([...mockIncidents]);
+    // No-op or clear DB? User asked to remove mock.
+    setIncidents([]);
   }, []);
 
   const value = useMemo(
