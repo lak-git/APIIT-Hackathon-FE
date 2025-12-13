@@ -229,12 +229,22 @@ export function CreateIncidentScreen({
               <div>
                 {/* Map preview */}
                 <div className="rounded-lg overflow-hidden border border-border bg-muted/20 relative">
-                  <iframe
-                    title="Location map"
-                    src={mapSrc}
-                    className="w-full h-44"
-                    loading="lazy"
-                  />
+                  {isOnline ? (
+                    <iframe
+                      title="Location map"
+                      src={mapSrc}
+                      className="w-full h-44"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-44 bg-muted flex flex-col items-center justify-center text-muted-foreground text-center p-4">
+                      <MapPin className="w-8 h-8 mb-2 opacity-30" />
+                      <span className="text-sm font-medium">Map view unavailable offline</span>
+                      <span className="text-xs mt-1">
+                        Coordinates: {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
+                      </span>
+                    </div>
+                  )}
                   {isStale && (
                     <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded shadow">
                       Cached (Offline)
