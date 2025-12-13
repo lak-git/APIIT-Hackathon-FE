@@ -5,10 +5,11 @@ import { FilterControls } from "../app/components/FilterControls";
 import { MapView } from "../app/components/MapView";
 import { IncidentTable } from "../app/components/IncidentTable";
 import { IncidentDetailPanel } from "../app/components/IncidentDetailPanel";
-import { AccountApprovals } from "../app/components/accountApprovals";
+import { AccountApprovals } from "../app/components/AccountApprovals";
 
 import type { Incident } from "../types/incident";
 import { useIncidentData } from "../providers/IncidentProvider";
+import { useAuth } from "../providers/AuthProvider";
 
 interface DashboardFilters {
   types: Incident["type"][];
@@ -24,6 +25,7 @@ const defaultFilters: DashboardFilters = {
 
 export default function CommandDashboardRoute() {
   const { incidents } = useIncidentData();
+  const { logout } = useAuth();
   const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
 
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(
@@ -79,6 +81,7 @@ export default function CommandDashboardRoute() {
         incidents={incidents}
         activeTab={activeView}
         onNavigate={setActiveView}
+        onLogout={logout}
       />
 
       {activeView === "home" ? (
@@ -111,8 +114,9 @@ export default function CommandDashboardRoute() {
           />
         </>
       ) : (
-        <AccountApprovals />
+        <AccountApprovals onLogout={logout} />
       )}
     </section>
   );
 }
+
