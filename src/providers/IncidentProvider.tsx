@@ -16,6 +16,8 @@ interface IncidentContextValue {
   registerFieldIncident: (report: IncidentReport, reporterName?: string) => Incident;
   resetToMock: () => void;
   resolveIncident: (id: string) => Promise<void>;
+  updateIncidentStatus: (id: string, status: Incident['status']) => Promise<void>;
+  markIncidentAsRead: (id: string) => Promise<void>;
   sync: () => Promise<void>;
 }
 
@@ -41,6 +43,7 @@ export const mapReportToIncident = (
     description: "Field report pending command triage.",
     imageUrl: report.photo,
     status: report.status === "synced" ? "Responding" : "Active",
+    isRead: false,
     reportedBy: reporterName ?? "Field Unit",
   };
 };
@@ -102,6 +105,7 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
                   description: row.description || "Command Center Report",
                   imageUrl: row.image_url,
                   status: row.status as any, // Use mapped status from DB
+                  isRead: row.is_read || false,
                   reportedBy: "Command Center",
                 }));
                 setRemoteIncidents(mappedRemote);
@@ -151,6 +155,7 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
               description: newRow.description || "Realtime Report",
               imageUrl: newRow.image_url,
               status: newRow.status as any,
+              isRead: newRow.is_read || false,
               reportedBy: "Realtime Update",
             };
 
@@ -158,7 +163,8 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
               if (payload.eventType === 'INSERT') {
                 return [mappedIncident, ...prev];
               } else if (payload.eventType === 'UPDATE') {
-                return prev.map(inc => inc.id === mappedIncident.id ? mappedIncident : inc);
+                // If is_read changed, merge it carefully
+                return prev.map(inc => inc.id === mappedIncident.id ? { ...mappedIncident, reportedBy: inc.reportedBy } : inc);
               }
               return prev;
             });
@@ -264,16 +270,84 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session?.access_token]);
 
+  const updateIncidentStatus = useCallback(async (id: string, newStatus: Incident['status']) => {
+    // 1. Optimistic Update
+    setRemoteIncidents(prev => prev.map(inc =>
+      inc.id === id ? { ...inc, status: newStatus } : inc
+    ));
+    // If it's being marked as resolved, also remove from map view effectively by status change
+    // If dispatched, just status change.
+
+    console.log(`[IncidentProvider] Updating incident ${id} status to ${newStatus}`);
+
+    try {
+      if (!session?.access_token) {
+        console.error("[IncidentProvider] Cannot update: No session token available.");
+        return;
+      }
+
+      const updateUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/incidents?id=eq.${id}`;
+
+      const response = await fetch(updateUrl, {
+        method: 'PATCH',
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[IncidentProvider] REST Update Failed: ${response.status} ${response.statusText}`, errorText);
+        throw new Error(`Failed to update incident: ${response.status} ${errorText}`);
+      }
+    } catch (e: any) {
+      console.error("[IncidentProvider] Error updating incident:", e);
+    }
+  }, [session?.access_token]);
+
+  const markIncidentAsRead = useCallback(async (id: string) => {
+    // 1. Optimistic Update
+    setRemoteIncidents(prev => prev.map(inc =>
+      inc.id === id ? { ...inc, isRead: true } : inc
+    ));
+
+    console.log(`[IncidentProvider] Marking incident ${id} as read`);
+
+    try {
+      if (!session?.access_token) return;
+
+      const updateUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/incidents?id=eq.${id}`;
+
+      await fetch(updateUrl, {
+        method: 'PATCH',
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_read: true })
+      });
+    } catch (e: any) {
+      console.error("[IncidentProvider] Error marking as read:", e);
+    }
+  }, [session?.access_token]);
+
   const value = useMemo(
     () => ({
       incidents,
       setIncidents,
       registerFieldIncident,
       resetToMock,
-      resolveIncident,
+      resolveIncident: async (id: string) => updateIncidentStatus(id, 'Resolved'),
+      updateIncidentStatus,
+      markIncidentAsRead,
       sync
     }),
-    [incidents, registerFieldIncident, resetToMock, resolveIncident, sync],
+    [incidents, registerFieldIncident, resetToMock, resolveIncident, sync, updateIncidentStatus, markIncidentAsRead],
   );
 
   return <IncidentContext.Provider value={value}>{children}</IncidentContext.Provider>;

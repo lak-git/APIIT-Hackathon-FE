@@ -155,7 +155,7 @@ export function HomeScreen({
                         {incident.description}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                         {incident.location.address || "Unknown Location"}
+                        {incident.location.address || "Unknown Location"}
                       </p>
                     </div>
                   </div>
@@ -188,7 +188,18 @@ export function HomeScreen({
                         {incident.description}
                       </p>
                     </div>
-                    <div className={`w-2 h-2 rounded-full ${incident.status === 'Active' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                    <div className="flex items-center gap-2">
+                      {!incident.isRead ? (
+                        <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">
+                          Pending
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+                          Read
+                        </Badge>
+                      )}
+                      <div className={`w-2 h-2 rounded-full ${incident.status === 'Active' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                    </div>
                   </div>
                 </Card>
               ))
