@@ -23,6 +23,7 @@ class FieldResponderDB extends Dexie {
     this.version(1).stores({
       reports: "id, type, severity, status, timestamp, createdAt"
     });
+    this.reports = this.table("reports");
   }
 }
 

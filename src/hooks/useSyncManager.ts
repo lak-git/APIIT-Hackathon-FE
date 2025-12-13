@@ -1,39 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { db } from '../db/db';
 import { supabase } from '../supabaseClient';
-import type { EntityTable } from 'dexie';
-
-// Define the interface locally since db.ts is being worked on by another dev
-export interface LocalIncident {
-    local_id?: number; // Primary key, auto-incremented by Dexie
-    incident_type: string;
-    severity: 1 | 2 | 3 | 4 | 5;
-    latitude: number;
-    longitude: number;
-    description: string;
-    syncStatus: 'pending' | 'synced';
-    photoBlob?: Blob; // Using Blob type for the binary data
-    image_url?: string;
-    // Additional fields to match Supabase schema if needed, 
-    // but these are the ones we sync.
-}
-
-// Extend the original db instance type locally
-type ExtendedDexie = typeof db & {
-    incidents: EntityTable<LocalIncident, 'local_id'>;
-};
 
 export const useSyncManager = () => {
     const [isSyncing, setIsSyncing] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
     const [syncError, setSyncError] = useState<string | null>(null);
 
-    // Helper to get the typed db instance
-    const getDb = () => db as unknown as ExtendedDexie;
-
     const updatePendingCount = useCallback(async () => {
         try {
-            const count = await getDb().incidents.where('syncStatus').equals('pending').count();
+            const count = await db.reports
+                .where('status')
+                .anyOf('local', 'pending', 'failed')
+                .count();
             setPendingCount(count);
         } catch (error) {
             console.error("Failed to count pending items:", error);
@@ -41,13 +20,15 @@ export const useSyncManager = () => {
     }, []);
 
     const sync = useCallback(async () => {
+        console.log("[SyncManager] Sync triggered");
+        
         if (!navigator.onLine) {
-            console.log("Offline, skipping sync.");
+            console.log("[SyncManager] Offline, skipping sync.");
             return;
         }
 
         if (isSyncing) {
-            console.log("Sync already in progress.");
+            console.log("[SyncManager] Sync already in progress.");
             return;
         }
 
@@ -55,57 +36,83 @@ export const useSyncManager = () => {
         setSyncError(null);
 
         try {
-            const pendingIncidents = await getDb().incidents.where('syncStatus').equals('pending').toArray();
+            console.log("[SyncManager] Querying Dexie for pending reports...");
+            // Check for any report that needs syncing (local, pending, or failed from previous attempts)
+            const pendingIncidents = await db.reports
+                .where('status')
+                .anyOf('local', 'pending', 'failed')
+                .toArray();
+
+            console.log('[SyncManager] Pending incidents found:', pendingIncidents);
 
             if (pendingIncidents.length === 0) {
+                console.log("[SyncManager] No pending incidents found.");
                 setIsSyncing(false);
                 return;
             }
 
-            console.log(`Found ${pendingIncidents.length} pending incidents to sync.`);
+            console.log(`[SyncManager] Found ${pendingIncidents.length} incidents to sync.`);
 
             for (const incident of pendingIncidents) {
-                if (!incident.local_id) continue;
-
-                let finalImageUrl = incident.image_url;
+                console.log(`[SyncManager] Processing incident ${incident.id}`, incident);
+                let finalImageUrl = incident.photo;
 
                 // 1. Image Handling
-                if (incident.photoBlob) {
-                    const fileName = `${incident.local_id}_${Date.now()}.jpg`;
-                    const { data, error: uploadError } = await supabase.storage
-                        .from('disaster-photos')
-                        .upload(fileName, incident.photoBlob);
+                if (incident.photo && incident.photo.startsWith('data:')) {
+                    console.log(`[SyncManager] Uploading image for ${incident.id}...`);
+                    try {
+                        // Convert base64/data URL to Blob
+                        const res = await fetch(incident.photo);
+                        const blob = await res.blob();
+                        const fileExt = incident.photo.match(/data:image\/(\w+);base64/)?.[1] || 'jpg';
+                        const fileName = `${incident.id}_${Date.now()}.${fileExt}`;
 
-                    if (uploadError) {
-                        console.error(`Failed to upload image for incident ${incident.local_id}:`, uploadError);
-                        setSyncError(`Image upload failed: ${uploadError.message}`);
-                        // We continue to the next item or retry? 
-                        // Requirements say "The Sync Logic", implies we try to complete.
-                        // If image fails, we probably shouldn't sync the record without it if it's required.
-                        // For now, let's treat this as a blockers for this item.
+                        const { data, error: uploadError } = await supabase.storage
+                            .from('disaster-photos')
+                            .upload(fileName, blob);
+
+                        if (uploadError) {
+                            console.error(`[SyncManager] Failed to upload image for incident ${incident.id}:`, uploadError);
+                            setSyncError(`Image upload failed: ${uploadError.message}`);
+                            // Skip this item if image upload is critical, or continue?
+                            // Assuming we should retry later if upload fails.
+                            continue;
+                        }
+                        
+                        console.log(`[SyncManager] Image uploaded successfully:`, data);
+
+                        if (data) {
+                            const { data: publicUrlData } = supabase.storage
+                                .from('disaster-photos')
+                                .getPublicUrl(data.path);
+                            finalImageUrl = publicUrlData.publicUrl;
+                            console.log(`[SyncManager] Public image URL:`, finalImageUrl);
+                        }
+                    } catch (e) {
+                        console.error("[SyncManager] Error processing image:", e);
+                        setSyncError("Error processing image");
                         continue;
                     }
-
-                    if (data) {
-                        const { data: publicUrlData } = supabase.storage
-                            .from('disaster-photos')
-                            .getPublicUrl(data.path);
-                        finalImageUrl = publicUrlData.publicUrl;
-                    }
+                } else {
+                    console.log(`[SyncManager] No base64 image found for ${incident.id}, skipping upload.`);
                 }
 
                 // 2. Database Insert
+                // Mapping IncidentReport fields to Supabase incidents table
                 const payload = {
-                    incident_type: incident.incident_type,
+                    incident_type: incident.type,
                     severity: incident.severity,
-                    latitude: incident.latitude,
-                    longitude: incident.longitude,
-                    description: incident.description,
-                    local_id: incident.local_id, // Important for tracking duplicates/idempotency if needed
+                    latitude: incident.location.latitude,
+                    longitude: incident.location.longitude,
+                    // description: undefined, // 'description' is not present in IncidentReport
+                    local_id: incident.id, // Using string UUID from local DB
                     image_url: finalImageUrl,
-                    // Add other fields if necessary, ensuring they match Supabase schema
-                    // e.g. status: 'Active' (default in DB?)
+                    // status: 'active', // Optional: set status for Supabase if needed
+                    created_at: incident.createdAt,
+                    occurred_at: incident.timestamp // Map local timestamp to occurred_at
                 };
+                
+                console.log(`[SyncManager] Inserting payload to Supabase:`, payload);
 
                 const { error: insertError } = await supabase
                     .from('incidents')
@@ -113,31 +120,35 @@ export const useSyncManager = () => {
 
                 // 3. Duplicate Handling & Completion
                 if (insertError) {
+                    console.log(`[SyncManager] Insert result: Error`, insertError);
                     // Check for Unique Violation (23505)
                     if (insertError.code === '23505') {
-                        console.log(`Incident ${incident.local_id} already exists (duplicate). Marking as synced.`);
+                        console.log(`[SyncManager] Incident ${incident.id} already exists (duplicate). Marking as synced.`);
                     } else {
-                        console.error(`Failed to insert incident ${incident.local_id}:`, insertError);
+                        console.error(`[SyncManager] Failed to insert incident ${incident.id}:`, insertError);
                         setSyncError(`Insert failed: ${insertError.message}`);
-                        continue; // Skip updating local state
+                        continue;
                     }
+                } else {
+                    console.log(`[SyncManager] Insert successful for ${incident.id}`);
                 }
 
                 // Success or Duplicate -> Update local Dexie record
-                await getDb().incidents.update(incident.local_id, {
-                    syncStatus: 'synced',
-                    photoBlob: undefined, // Remove blob to save space
-                    image_url: finalImageUrl // Persist the URL if we got one
+                console.log(`[SyncManager] Updating local DB status to 'synced' for ${incident.id}`);
+                await db.reports.update(incident.id, {
+                    status: 'synced',
+                    photo: finalImageUrl // Update photo with URL to save space
                 });
             }
 
             await updatePendingCount();
 
         } catch (err: any) {
-            console.error("Critical sync error:", err);
+            console.error("[SyncManager] Critical sync error:", err);
             setSyncError(err.message || "Unknown sync error");
         } finally {
             setIsSyncing(false);
+            console.log("[SyncManager] Sync process finished.");
         }
     }, [isSyncing, updatePendingCount]);
 

@@ -1,7 +1,11 @@
-import { createContext, useCallback, useContext, useMemo } from "react";
+import React, { createContext, useCallback, useContext, useMemo } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 
 import type { Incident } from "../types/incident";
 import type { IncidentReport } from "../app/utils/storage";
+import { useSyncManager } from "../hooks/useSyncManager";
+import { db } from "../db/db";
+import { storage } from "../app/utils/storage";
 
 interface IncidentContextValue {
   incidents: Incident[];
@@ -37,11 +41,9 @@ export const mapReportToIncident = (
   };
 };
 
-import { db } from "../db/db";
-import { useLiveQuery } from "dexie-react-hooks";
-import { storage } from "../app/utils/storage";
-
 export function IncidentProvider({ children }: { children: React.ReactNode }) {
+  useSyncManager();
+  
   // Directly query Dexie for all reports
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
 
