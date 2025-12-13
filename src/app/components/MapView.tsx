@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -6,6 +6,15 @@ import {
   Popup,
   useMap,
 } from "react-leaflet";
+import {
+  Layers,
+  CloudRain,
+  Wind,
+  Cloud,
+  Thermometer,
+  Map as MapIcon,
+  Sun
+} from "lucide-react";
 import type { Incident } from "../../types/incident";
 import "leaflet/dist/leaflet.css";
 
@@ -33,6 +42,28 @@ function MapUpdater({ selectedIncident }: { selectedIncident: Incident | null })
 }
 
 export function MapView({ incidents, selectedIncident, onIncidentClick }: MapViewProps) {
+  const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY;
+
+  // Custom Layer State
+  const [activeBaseMap, setActiveBaseMap] = useState<'osm' | 'light'>('osm');
+  const [weatherLayers, setWeatherLayers] = useState({
+    precipitation: false,
+    clouds: false,
+    temp: false,
+    wind: false,
+  });
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!API_KEY) {
+      console.warn("VITE_OPENWEATHER_API_KEY is missing. Weather layers will not render properly.");
+    }
+  }, [API_KEY]);
+
+  const toggleWeatherLayer = (layer: keyof typeof weatherLayers) => {
+    setWeatherLayers(prev => ({ ...prev, [layer]: !prev[layer] }));
+  };
+
   const getSeverityStyles = (severity: number) => {
     switch (severity) {
       case 5:
@@ -58,11 +89,66 @@ export function MapView({ incidents, selectedIncident, onIncidentClick }: MapVie
         zoom={13}
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom={true}
+        zoomControl={false}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        {/* Base Map Layer */}
+        {activeBaseMap === 'osm' ? (
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+        ) : (
+          <TileLayer
+            attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
+            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          />
+        )}
+
+        {/* Weather Overlays */}
+        {API_KEY && weatherLayers.precipitation && (
+          <TileLayer
+            key="precip"
+            url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${API_KEY}`}
+            opacity={1.0}
+            zIndex={10}
+          />
+        )}
+        {API_KEY && weatherLayers.clouds && (
+          <TileLayer
+            key="clouds"
+            url={`https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=${API_KEY}`}
+            opacity={1.0}
+            zIndex={10}
+          />
+        )}
+        {API_KEY && weatherLayers.temp && (
+          <TileLayer
+            key="temp"
+            url={`https://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=${API_KEY}`}
+            opacity={1.0}
+            zIndex={10}
+          />
+        )}
+
+        {/* Wind Layer - Stacked for visibility */}
+        {API_KEY && weatherLayers.wind && (
+          <>
+            {/* Color Gradient Layer */}
+            <TileLayer
+              key="wind-color"
+              url={`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${API_KEY}`}
+              opacity={0.6}
+              zIndex={10}
+            />
+            {/* Arrow/Direction Layer (experimental params) */}
+            <TileLayer
+              key="wind-arrows"
+              url={`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${API_KEY}&arrow_step=16`}
+              opacity={0.8}
+              zIndex={11}
+            />
+          </>
+        )}
 
         <MapUpdater selectedIncident={selectedIncident} />
 
@@ -97,22 +183,138 @@ export function MapView({ incidents, selectedIncident, onIncidentClick }: MapVie
         })}
       </MapContainer>
 
-      {/* Map title overlay (CENTER TOP) */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[400] bg-white/90 backdrop-blur-sm rounded-lg shadow-md px-4 py-2 pointer-events-none text-center">
-        <div className="text-sm font-semibold text-[#800020]">
+      {/* Floating Floating Dock - High Fidelity UI */}
+      <div className="absolute top-4 right-4 z-[1000] flex flex-col items-end gap-2">
+        <button
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          className={`
+            p-3 rounded-xl shadow-lg transition-all duration-300 border
+            ${isMenuOpen
+              ? 'bg-blue-600 text-white border-blue-500 ring-2 ring-blue-200'
+              : 'bg-white/95 text-gray-700 hover:bg-white border-gray-100/50 hover:scale-105'
+            }
+          `}
+          title="Map Layers & Weather"
+        >
+          <Layers className="w-6 h-6" />
+        </button>
+
+        {isMenuOpen && (
+          <div className="bg-white/95 backdrop-blur-md p-4 rounded-xl shadow-2xl border border-gray-100 w-72 animate-in fade-in slide-in-from-top-4 duration-300">
+            {/* Section 1: Base Style */}
+            <div className="mb-5">
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 px-1">Base Map</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setActiveBaseMap('osm')}
+                  className={`
+                    relative flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all duration-200
+                    ${activeBaseMap === 'osm'
+                      ? 'bg-blue-50/50 border-blue-500 text-blue-700 shadow-sm'
+                      : 'bg-gray-50/50 border-transparent text-gray-500 hover:bg-gray-100 hover:border-gray-200'
+                    }
+                  `}
+                >
+                  <MapIcon className="w-5 h-5" />
+                  <span className="text-xs font-semibold">Standard</span>
+                  {activeBaseMap === 'osm' && (
+                    <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveBaseMap('light')}
+                  className={`
+                    relative flex flex-col items-center justify-center gap-2 p-3 rounded-xl border-2 transition-all duration-200
+                    ${activeBaseMap === 'light'
+                      ? 'bg-blue-50/50 border-blue-500 text-blue-700 shadow-sm'
+                      : 'bg-gray-50/50 border-transparent text-gray-500 hover:bg-gray-100 hover:border-gray-200'
+                    }
+                  `}
+                >
+                  <Sun className="w-5 h-5" />
+                  <span className="text-xs font-semibold">Clean Light</span>
+                  {activeBaseMap === 'light' && (
+                    <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-4" />
+
+            {/* Section 2: Weather Overlays */}
+            <div>
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 px-1">Live Weather</h3>
+              <div className="space-y-2">
+                {[
+                  { id: 'wind', label: 'Wind Speed', icon: Wind },
+                  { id: 'precipitation', label: 'Precipitation', icon: CloudRain },
+                  { id: 'clouds', label: 'Cloud Cover', icon: Cloud },
+                  { id: 'temp', label: 'Temperature', icon: Thermometer },
+                ].map((item) => {
+                  const isActive = weatherLayers[item.id as keyof typeof weatherLayers];
+                  const Icon = item.icon;
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => toggleWeatherLayer(item.id as keyof typeof weatherLayers)}
+                      className={`
+                        group flex items-center justify-between w-full p-2.5 rounded-lg border transition-all duration-200
+                        ${isActive
+                          ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-sm'
+                          : 'bg-transparent border-transparent text-gray-600 hover:bg-gray-50'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-1.5 rounded-md ${isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500 group-hover:bg-white group-hover:shadow-sm'}`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <span className="text-sm font-medium">{item.label}</span>
+                      </div>
+
+                      {/* Custom Toggle Switch Appearance */}
+                      <div className={`
+                        w-10 h-5 rounded-full relative transition-colors duration-300
+                        ${isActive ? 'bg-blue-500' : 'bg-gray-200'}
+                      `}>
+                        <div className={`
+                          absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300
+                          ${isActive ? 'translate-x-5' : 'translate-x-0'}
+                        `} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {!API_KEY && (
+              <div className="mt-4 p-2 bg-red-50 text-red-600 text-[10px] rounded border border-red-100 text-center">
+                API Key Missing (Check .env)
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Map title overlay */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[400] bg-white/90 backdrop-blur-md rounded-full shadow-lg border border-white/20 px-6 py-2.5 pointer-events-none text-center">
+        <div className="text-sm font-bold text-gray-800 tracking-tight">
           Incident Overview Map
         </div>
-        <div className="text-xs text-[#6B4423]">
-          Displays all reported incidents by location
+        <div className="text-[10px] uppercase tracking-wider text-gray-500 font-medium">
+          Live Monitoring
         </div>
       </div>
 
       {/* Legend overlay */}
-      <div className="absolute top-4 right-4 z-[400] bg-white/90 backdrop-blur-sm rounded-lg shadow-md p-3">
-        <div className="text-xs text-[#6B4423] mb-2 font-medium">
-          Severity Legend
+      <div className="absolute bottom-6 right-4 z-[400] bg-white/90 backdrop-blur-md rounded-xl shadow-lg border border-white/20 p-4">
+        <div className="text-xs font-bold text-gray-700 mb-3 uppercase tracking-wider">
+          Severity Levels
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           {[
             { level: 5, label: "Critical", color: "#dc2626" },
             { level: 4, label: "High", color: "#f97316" },
@@ -120,16 +322,16 @@ export function MapView({ incidents, selectedIncident, onIncidentClick }: MapVie
             { level: 2, label: "Low", color: "#3b82f6" },
             { level: 1, label: "Minimal", color: "#22c55e" },
           ].map(({ level, label, color }) => (
-            <div key={level} className="flex items-center gap-2 text-xs">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-              <span className="text-[#6B4423]">{label}</span>
+            <div key={level} className="flex items-center gap-2.5">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: color }}></span>
+                <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: color }}></span>
+              </span>
+              <span className="text-xs text-gray-600 font-medium">{label}</span>
             </div>
           ))}
         </div>
       </div>
-
-      {/* Footer hint */}
-
     </div>
   );
 }
