@@ -40,8 +40,8 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md p-8 shadow-sm">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-white w-full">
+      <Card className="w-full p-8 shadow-sm">
         {/* Header */}
         <div className="flex flex-col items-center mb-3">
           <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mb-2">

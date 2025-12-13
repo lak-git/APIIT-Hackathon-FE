@@ -3,43 +3,61 @@
 :root {
   --font-size: 16px;
   --font-family: 'Montserrat', sans-serif;
-  --background: #FAF3E8; /* Lighter beige background */
-  --foreground: #4A1A1A; /* Dark maroon text */
+
+  /* ✅ Beige -> White */
+  --background: #FFFFFF;
+  --secondary: #FFFFFF;
+  --muted: #FFFFFF;
+  --switch-background: #FFFFFF;
+  --sidebar-accent: #FFFFFF;
+
+  /* ✅ Maroon -> Black */
+  --foreground: #000000;
   --card: #FFFFFF;
-  --card-foreground: #4A1A1A;
+  --card-foreground: #000000;
   --popover: #FFFFFF;
-  --popover-foreground: #4A1A1A;
-  --primary: #800020; /* Maroon primary */
+  --popover-foreground: #000000;
+
+  --primary: #000000;
   --primary-foreground: #FFFFFF;
-  --secondary: #FAF3E8; /* Lighter beige secondary */
-  --secondary-foreground: #4A1A1A;
-  --muted: #F0E6D8;
-  --muted-foreground: #6B4423;
-  --accent: #6B1B2B; /* Dark maroon accent */
+
+  --secondary-foreground: #000000;
+
+  --muted-foreground: #000000;
+
+  --accent: #000000;
   --accent-foreground: #FFFFFF;
+
   --destructive: #DC2626;
   --destructive-foreground: #FFFFFF;
-  --border: rgba(128, 0, 32, 0.15);
+
+  /* Border tuned for black theme */
+  --border: rgba(0, 0, 0, 0.15);
+
   --input: transparent;
   --input-background: #FFFFFF;
-  --switch-background: #F0E6D8;
-  --font-weight-medium: 600; /* Semi-bold for Montserrat */
+
+  --font-weight-medium: 600;
   --font-weight-normal: 400;
-  --ring: #800020;
-  --chart-1: #800020;
-  --chart-2: #A52A2A;
-  --chart-3: #6B1B2B;
-  --chart-4: #D2691E;
-  --chart-5: #8B4513;
+
+  --ring: #000000;
+
+  /* Charts: maroon shades -> black/neutral browns replaced with black/greys */
+  --chart-1: #000000;
+  --chart-2: #1F2937;
+  --chart-3: #374151;
+  --chart-4: #4B5563;
+  --chart-5: #6B7280;
+
   --radius: 0.75rem;
+
   --sidebar: #FFFFFF;
-  --sidebar-foreground: #4A1A1A;
-  --sidebar-primary: #800020;
+  --sidebar-foreground: #000000;
+  --sidebar-primary: #000000;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #FAF3E8;
-  --sidebar-accent-foreground: #4A1A1A;
-  --sidebar-border: rgba(128, 0, 32, 0.15);
-  --sidebar-ring: #800020;
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border: rgba(0, 0, 0, 0.15);
+  --sidebar-ring: #000000;
 }
 
 .dark {
