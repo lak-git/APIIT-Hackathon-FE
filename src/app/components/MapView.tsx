@@ -5,6 +5,7 @@ import {
   CircleMarker,
   Popup,
   useMap,
+  LayersControl,
 } from "react-leaflet";
 import type { Incident } from "../../types/incident";
 import "leaflet/dist/leaflet.css";
@@ -33,6 +34,14 @@ function MapUpdater({ selectedIncident }: { selectedIncident: Incident | null })
 }
 
 export function MapView({ incidents, selectedIncident, onIncidentClick }: MapViewProps) {
+  const API_KEY = import.meta.env.VITE_OPENWEATHER_API_KEY;
+
+  useEffect(() => {
+    if (!API_KEY) {
+      console.warn("VITE_OPENWEATHER_API_KEY is missing. Weather layers will not render properly.");
+    }
+  }, [API_KEY]);
+
   const getSeverityStyles = (severity: number) => {
     switch (severity) {
       case 5:
@@ -59,10 +68,37 @@ export function MapView({ incidents, selectedIncident, onIncidentClick }: MapVie
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom={true}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        <LayersControl position="topright">
+          <LayersControl.BaseLayer checked name="Standard Map">
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+          </LayersControl.BaseLayer>
+
+          {API_KEY && (
+            <>
+              <LayersControl.Overlay name="Precipitation">
+                <TileLayer
+                  url={`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${API_KEY}`}
+                  attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                />
+              </LayersControl.Overlay>
+              <LayersControl.Overlay name="Clouds">
+                <TileLayer
+                  url={`https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=${API_KEY}`}
+                  attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                />
+              </LayersControl.Overlay>
+              <LayersControl.Overlay name="Temperature">
+                <TileLayer
+                  url={`https://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=${API_KEY}`}
+                  attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                />
+              </LayersControl.Overlay>
+            </>
+          )}
+        </LayersControl>
 
         <MapUpdater selectedIncident={selectedIncident} />
 
@@ -108,7 +144,7 @@ export function MapView({ incidents, selectedIncident, onIncidentClick }: MapVie
       </div>
 
       {/* Legend overlay */}
-      <div className="absolute top-4 right-4 z-[400] bg-white/90 backdrop-blur-sm rounded-lg shadow-md p-3">
+      <div className="absolute top-4 right-16 z-[400] bg-white/90 backdrop-blur-sm rounded-lg shadow-md p-3 pr-8">
         <div className="text-xs text-[#6B4423] mb-2 font-medium">
           Severity Legend
         </div>
