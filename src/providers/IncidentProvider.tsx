@@ -232,13 +232,18 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
         .eq('id', id);
 
       if (error) {
-        console.error("Failed to mark incident as done:", error);
-        // Revert on error (optional, but good practice)
-        // fetchIncidents(); // Easier to just re-fetch in this simple app context
+        console.error("Failed to mark incident as done. Details:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         throw error;
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Error resolving incident:", e);
+      // Revert optimistic update if needed
+      // fetchIncidents();
     }
   }, []);
 
