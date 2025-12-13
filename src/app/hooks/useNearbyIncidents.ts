@@ -27,8 +27,10 @@ export function useNearbyIncidents(incidents: Incident[]) {
       
       console.log(`[Nearby] Incident ${incident.id}: Dist=${dist.toFixed(3)}km, Time=${incidentTime.toLocaleTimeString()}`);
 
-      return dist <= 1.0; 
-    });
+      return dist <= 2.0; 
+    })
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 2);
   }, [incidents, latitude, longitude]);
 
   return nearbyIncidents;
