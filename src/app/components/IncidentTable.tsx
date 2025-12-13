@@ -1,5 +1,6 @@
 import type { Incident } from "../../types/incident";
 import { AlertCircle, Info } from "lucide-react";
+import { useState, useEffect } from "react";
 
 interface IncidentTableProps {
   incidents: Incident[];
@@ -32,6 +33,27 @@ export function IncidentTable({
     if (status === "Active") return "bg-red-100 text-red-800";
     if (status === "Responding") return "bg-blue-100 text-blue-800";
     return "bg-green-100 text-green-800";
+  };
+
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 10;
+
+  // Reset page when filters change (total items change)
+  useEffect(() => {
+    setPage(1);
+  }, [incidents.length]);
+
+  const totalPages = Math.ceil(incidents.length / ITEMS_PER_PAGE);
+  const startIndex = (page - 1) * ITEMS_PER_PAGE;
+  // Ensure we don't slice out of bounds, though slice handles it gracefully
+  const paginatedIncidents = incidents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const handleNext = () => {
+    if (page < totalPages) setPage((p) => p + 1);
+  };
+
+  const handlePrev = () => {
+    if (page > 1) setPage((p) => p - 1);
   };
 
   return (
@@ -76,7 +98,7 @@ export function IncidentTable({
                 </td>
               </tr>
             ) : (
-              incidents.map((incident, index) => {
+              paginatedIncidents.map((incident, index) => {
                 const isSelected = selectedIncident?.id === incident.id;
 
                 return (
@@ -148,6 +170,31 @@ export function IncidentTable({
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls */}
+      {incidents.length > ITEMS_PER_PAGE && (
+        <div className="flex items-center justify-between px-4 py-2 border-t border-[#E5D5C3] bg-[#FAF3E8]">
+          <span className="text-xs text-[#6B4423]">
+            Page {page} of {totalPages} ({incidents.length} items)
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={handlePrev}
+              disabled={page === 1}
+              className="px-3 py-1 text-xs font-medium text-[#4A1A1A] bg-white border border-[#E5D5C3] rounded hover:bg-[#FAF3E8] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={handleNext}
+              disabled={page === totalPages}
+              className="px-3 py-1 text-xs font-medium text-[#4A1A1A] bg-white border border-[#E5D5C3] rounded hover:bg-[#FAF3E8] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

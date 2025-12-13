@@ -90,7 +90,7 @@ export default function CommandDashboardRoute() {
           />
         </div>
 
-        <div className="max-h-[380px] rounded-lg border border-[#E5D5C3] bg-white overflow-hidden">
+        <div className="h-[500px] rounded-lg border border-[#E5D5C3] bg-white">
           <IncidentTable
             incidents={filteredIncidents}
             selectedIncident={selectedIncident}
