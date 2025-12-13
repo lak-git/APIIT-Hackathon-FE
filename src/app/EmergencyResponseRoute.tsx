@@ -4,13 +4,16 @@ import { toast } from "sonner";
 import { LoginScreen } from "./components/LoginScreen";
 import { HomeScreen } from "./components/HomeScreen";
 import { CreateIncidentScreen } from "./components/CreateIncidentScreen";
+
 import { PendingReportsScreen } from "./components/PendingReportsScreen";
+import CommandDashboardRoute from "../routes/CommandDashboardRoute";
 
 import { useIncidentData } from "../providers/IncidentProvider";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { useLiveQuery } from "dexie-react-hooks";
 import { storage } from "./utils/storage";
 import { db, type IncidentReport } from "../db/db";
+import { getCurrentUser, getUserProfile, logout } from "./services/authService";
 
 import {
   CheckCircle2,
@@ -24,7 +27,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-type Screen = "login" | "home" | "create" | "reports";
+type Screen = "login" | "home" | "create" | "reports" | "dashboard";
 
 const MAROON = "#800020";
 const WHITE = "#FFFFFF";
@@ -107,19 +110,32 @@ export default function EmergencyResponseRoute() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline]);
 
-  const handleLogin = (email: string, _password: string) => {
-    // Mock authentication
-    const mockToken = `token_${Date.now()}`;
-    storage.setAuthToken(mockToken);
+  const handleLogin = async (email: string, _password: string) => {
+    const user = await getCurrentUser();
+    if (!user) return;
+
+    storage.setAuthToken("supabase-session");
     storage.setUser({ email, name: email.split("@")[0] });
 
     setIsAuthenticated(true);
-    setCurrentScreen("home");
+
+    // Fetch profile and direct
+    const profile = await getUserProfile(user.id);
+    if (profile?.isAdmin) {
+      setCurrentScreen("dashboard");
+    } else {
+      setCurrentScreen("home");
+    }
 
     toastMaroon("Logged in successfully", { icon: icons.login });
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
     storage.clearAuthToken();
     storage.clearUser();
     setIsAuthenticated(false);
@@ -244,6 +260,8 @@ export default function EmergencyResponseRoute() {
           onRetry={handleRetrySync}
         />
       )}
+
+      {currentScreen === "dashboard" && <CommandDashboardRoute />}
     </>
   );
 }
