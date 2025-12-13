@@ -13,8 +13,7 @@ import {
   Cloud,
   Thermometer,
   Map as MapIcon,
-  Sun,
-  Check
+  Sun
 } from "lucide-react";
 import type { Incident } from "../../types/incident";
 import "leaflet/dist/leaflet.css";
