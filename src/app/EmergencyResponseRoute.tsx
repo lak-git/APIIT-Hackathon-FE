@@ -65,15 +65,19 @@ function toastBlack(
 
 // ✅ Loading toast (syncing)
 export default function EmergencyResponseRoute() {
+  const { registerFieldIncident, incidents: activeIncidents } = useIncidentData();
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
   const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
 
-  const { isAuthenticated, isAdmin, logout: authLogout } = useAuth();
+  const { isAuthenticated, isAdmin, isLoading, logout: authLogout } = useAuth();
   const navigate = useNavigate();
+
+
+
 
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
   const isOnline = useOnlineStatus();
-  const { registerFieldIncident } = useIncidentData();
+
   const { canInstall: canInstallPWA, promptInstall, dismissPrompt } = usePWAInstallPrompt();
   const shouldShowInstallBanner = canInstallPWA && !installBannerDismissed;
 
@@ -95,6 +99,8 @@ export default function EmergencyResponseRoute() {
   );
 
   useEffect(() => {
+    if (isLoading) return; // Wait for session check
+
     if (isAuthenticated) {
       if (isAdmin) {
         navigate("/command", { replace: true });
@@ -104,7 +110,9 @@ export default function EmergencyResponseRoute() {
     } else {
       setCurrentScreen("login");
     }
-  }, [isAuthenticated, isAdmin, navigate]);
+  }, [isLoading, isAuthenticated, isAdmin, navigate]);
+
+
 
   // NOTE: Reports are now automatically synced to IncidentProvider via its internal useLiveQuery.
   // We don't need to manually register them here anymore.
@@ -125,11 +133,18 @@ export default function EmergencyResponseRoute() {
   }, [isOnline]);
 
   const handleLogin = async (email: string, _password: string) => {
+
+
     const user = await getCurrentUser();
+
+
     if (!user) return;
 
+    // Set custom storage manually - why? AuthProvider does "sb-session"
+    // storage.ts uses "field_responder_..."
     storage.setAuthToken("supabase-session");
     storage.setUser({ email, name: email.split("@")[0] });
+
 
     const profile = await getUserProfile(user.id);
     if (profile?.is_admin) {
@@ -246,6 +261,14 @@ export default function EmergencyResponseRoute() {
 
   const pendingCount = reports.filter((r) => r.status !== "synced").length;
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return <LoginScreen onLogin={handleLogin} />;
   }
@@ -314,6 +337,7 @@ export default function EmergencyResponseRoute() {
           onCreateIncident={() => setCurrentScreen("create")}
           onViewReports={() => setCurrentScreen("reports")}
           onLogout={handleLogout}
+          remoteIncidents={activeIncidents}
         />
       )}
 
