@@ -8,7 +8,6 @@ export interface Incident {
   location: {
     lat: number;
     lng: number;
-    address: string;
   };
   description: string;
   imageUrl?: string;
