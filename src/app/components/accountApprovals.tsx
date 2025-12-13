@@ -13,7 +13,6 @@ interface AccountApproval {
 }
 
 interface AccountApprovalsProps {
-  onLogout?: () => void;
 }
 
 const MOCK_APPROVALS: AccountApproval[] = [
@@ -39,7 +38,7 @@ const MOCK_APPROVALS: AccountApproval[] = [
   },
 ];
 
-export function AccountApprovals({ onLogout }: AccountApprovalsProps) {
+export function AccountApprovals({ }: AccountApprovalsProps) {
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 5;
 
@@ -66,14 +65,6 @@ export function AccountApprovals({ onLogout }: AccountApprovalsProps) {
             Review and approve verified responders before granting system access.
           </p>
         </div>
-        {onLogout && (
-          <button
-            onClick={onLogout}
-            className="text-xs text-[#800020] hover:underline font-semibold"
-          >
-            Logout
-          </button>
-        )}
       </div>
 
       {/* Table wrapper (horizontal scroll) */}

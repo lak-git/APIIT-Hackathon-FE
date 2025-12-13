@@ -4,6 +4,7 @@ import { supabase } from "../supabaseClient";
 import type { Session, User } from "@supabase/supabase-js";
 import { getUserProfile, login as apiLogin, logout as apiLogout } from "../app/services/authService";
 import { useOnlineStatus } from "../app/hooks/useOnlineStatus";
+import { storage } from "../app/utils/storage";
 
 interface AuthContextType {
     user: User | null;
@@ -165,6 +166,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem("sb-session");
         localStorage.removeItem("sb-user");
         localStorage.removeItem("sb-isAdmin");
+
+        // Clear application specific storage (Field Responder data)
+        // We import this dynamically or just use the storage object if imported
+        // Ideally we should import { storage } from "../app/utils/storage";
+        // But to avoid circular deps if any, we can check keys manually or import it.
+        // Let's import it at the top.
+        storage.clearAllData();
 
         setUser(null);
         setSession(null);

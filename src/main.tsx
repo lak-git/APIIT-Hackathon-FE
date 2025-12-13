@@ -6,7 +6,7 @@ import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom"
 import App from "./App";
 import EmergencyResponseRoute from "./app/EmergencyResponseRoute";
 import CommandDashboardRoute from "./routes/CommandDashboardRoute";
-import { ProtectedRoute } from "./components/ProtectedRoute";
+import { ProtectedRoute } from "./routes/ProtectedRoute";
 import "./styles/index.css";
 
 const router = createBrowserRouter([

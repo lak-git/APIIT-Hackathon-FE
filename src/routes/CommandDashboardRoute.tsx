@@ -114,7 +114,7 @@ export default function CommandDashboardRoute() {
           />
         </>
       ) : (
-        <AccountApprovals onLogout={logout} />
+        <AccountApprovals />
       )}
     </section>
   );
