@@ -9,6 +9,7 @@ import { useAuth } from "../providers/AuthProvider";
 import { useIncidentData } from "../providers/IncidentProvider";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { usePWAInstallPrompt } from "./hooks/usePWAInstallPrompt";
+import { useNearbyIncidents } from "./hooks/useNearbyIncidents";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type IncidentReport } from "../db/db";
 import { storage } from "./utils/storage";
@@ -58,9 +59,10 @@ function toastBlack(
 
 // ✅ Loading toast (syncing)
 export default function EmergencyResponseRoute() {
-    const { registerFieldIncident, incidents: activeIncidents } = useIncidentData();
-    const [currentScreen, setCurrentScreen] = useState<Screen>("login");
-    const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
+  const { registerFieldIncident, incidents: activeIncidents } = useIncidentData();
+  const nearbyIncidents = useNearbyIncidents(activeIncidents);
+  const [currentScreen, setCurrentScreen] = useState<Screen>("login");
+  const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
 
     const { isAuthenticated, isAdmin, isLoading, logout: authLogout, login: authLogin } = useAuth();
     const navigate = useNavigate();
@@ -314,6 +316,7 @@ export default function EmergencyResponseRoute() {
                     onViewReports={() => setCurrentScreen("reports")}
                     onLogout={handleLogout}
                     remoteIncidents={activeIncidents}
+                    nearbyIncidents={nearbyIncidents}
                 />
             )}
 
