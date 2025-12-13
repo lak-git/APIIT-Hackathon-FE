@@ -32,7 +32,8 @@ export function IncidentDetailPanel({
       {/* Backdrop */}
       <div
         className={[
-          "fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px] transition-opacity duration-200",
+          // ✅ Raised above MapView overlays (which use z-[400] and z-[1000])
+          "fixed inset-0 z-[1990] bg-black/30 backdrop-blur-[1px] transition-opacity duration-200",
           isOpen
             ? "opacity-100 pointer-events-auto"
             : "opacity-0 pointer-events-none",
@@ -43,7 +44,8 @@ export function IncidentDetailPanel({
       {/* Slide-over panel */}
       <div
         className={[
-          "fixed top-0 right-0 z-50 h-full w-[380px] max-w-[92vw]",
+          // ✅ Raised above MapView overlays
+          "fixed top-0 right-0 z-[2000] h-full w-[380px] max-w-[92vw]",
           "transition-transform duration-300 ease-out",
           isOpen ? "translate-x-0" : "translate-x-full",
         ].join(" ")}
@@ -84,9 +86,7 @@ export function IncidentDetailPanel({
                     )}
                   </div>
 
-                  <h3 className="text-2xl text-black mb-1">
-                    {incident.type}
-                  </h3>
+                  <h3 className="text-2xl text-black mb-1">{incident.type}</h3>
 
                   <div
                     className={`inline-block px-2 py-1 rounded text-sm ${
