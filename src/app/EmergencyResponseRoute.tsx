@@ -121,7 +121,7 @@ export default function EmergencyResponseRoute() {
 
     // Fetch profile and direct
     const profile = await getUserProfile(user.id);
-    if (profile?.isAdmin) {
+    if (profile?.is_admin) {
       setCurrentScreen("dashboard");
     } else {
       setCurrentScreen("home");
