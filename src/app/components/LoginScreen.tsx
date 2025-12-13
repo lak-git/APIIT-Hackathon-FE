@@ -11,7 +11,6 @@ interface LoginScreenProps {
   onLogin: (email: string, password: string) => void;
 }
 
-
 export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,8 +39,9 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-white w-full">
-      <Card className="w-full p-8 shadow-sm">
+    <div className="min-h-screen w-full bg-white p-4 flex items-center justify-center">
+      {/* ✅ Keep the "mobile card" feel even on desktop */}
+      <Card className="w-full max-w-sm sm:max-w-md p-8 shadow-sm">
         {/* Header */}
         <div className="flex flex-col items-center mb-3">
           <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mb-2">
@@ -54,7 +54,6 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           </p>
         </div>
 
-        {/* Login title */}
         {/* Login title */}
         <p className="text-center text-primary font-semibold text-lg mb-0">
           {isLogin ? "Login" : "Create Account"}
@@ -140,7 +139,9 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               onClick={() => setIsLogin(!isLogin)}
               className="text-sm text-primary hover:underline"
             >
-              {isLogin ? "Need an account? Sign up" : "Already have an account? Login"}
+              {isLogin
+                ? "Need an account? Sign up"
+                : "Already have an account? Login"}
             </button>
 
             <p className="text-sm text-muted-foreground m-0">
