@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useMemo, useState } from "react
 import type { Incident } from "../types/incident";
 import type { IncidentReport } from "../app/utils/storage";
 import { mockIncidents } from "../data/mockIncidents";
+import { useSyncManager } from "../hooks/useSyncManager";
 
 interface IncidentContextValue {
   incidents: Incident[];
@@ -39,6 +40,7 @@ export const mapReportToIncident = (
 };
 
 export function IncidentProvider({ children }: { children: React.ReactNode }) {
+  useSyncManager();
   const [incidents, setIncidents] = useState<Incident[]>(() => [...mockIncidents]);
 
   const registerFieldIncident = useCallback(
