@@ -29,16 +29,18 @@ import {
 
 type Screen = "login" | "home" | "create" | "reports";
 
-const MAROON = "#800020";
+// ✅ Maroon -> Black
+const BLACK = "#000000";
+// ✅ Beige -> White
 const WHITE = "#FFFFFF";
 const BORDER = "#E5E5E5";
 
 /**
  * One consistent toast style for the whole app:
  * - White background
- * - Maroon text + icon
+ * - Black text + icon
  */
-function toastMaroon(
+function toastBlack(
   message: string,
   opts?: {
     icon?: React.ReactNode;
@@ -53,14 +55,14 @@ function toastMaroon(
     position: "bottom-center",
     style: {
       background: WHITE,
-      color: MAROON,
+      color: BLACK,
       border: `1px solid ${BORDER}`,
     },
   });
 }
 
 // ✅ Loading toast (syncing)
-function toastMaroonLoading(
+function toastBlackLoading(
   message: string,
   opts?: {
     icon?: React.ReactNode;
@@ -75,7 +77,7 @@ function toastMaroonLoading(
     position: "bottom-center",
     style: {
       background: WHITE,
-      color: MAROON,
+      color: BLACK,
       border: `1px solid ${BORDER}`,
     },
   });
@@ -91,19 +93,19 @@ export default function EmergencyResponseRoute() {
   const { canInstall: canInstallPWA, promptInstall, dismissPrompt } = usePWAInstallPrompt();
   const shouldShowInstallBanner = canInstallPWA && !installBannerDismissed;
 
-  // Icons pre-built (maroon)
+  // Icons pre-built (black)
   const icons = useMemo(
     () => ({
-      success: <CheckCircle2 size={18} color={MAROON} />,
-      info: <Info size={18} color={MAROON} />,
-      error: <XCircle size={18} color={MAROON} />,
-      saved: <Save size={18} color={MAROON} />,
-      login: <LogIn size={18} color={MAROON} />,
-      logout: <LogOut size={18} color={MAROON} />,
-      retry: <RefreshCw size={18} color={MAROON} />,
-      online: <Wifi size={18} color={MAROON} />,
-      offline: <WifiOff size={18} color={MAROON} />,
-      syncing: <RefreshCw size={18} color={MAROON} className="animate-spin" />,
+      success: <CheckCircle2 size={18} color={BLACK} />,
+      info: <Info size={18} color={BLACK} />,
+      error: <XCircle size={18} color={BLACK} />,
+      saved: <Save size={18} color={BLACK} />,
+      login: <LogIn size={18} color={BLACK} />,
+      logout: <LogOut size={18} color={BLACK} />,
+      retry: <RefreshCw size={18} color={BLACK} />,
+      online: <Wifi size={18} color={BLACK} />,
+      offline: <WifiOff size={18} color={BLACK} />,
+      syncing: <RefreshCw size={18} color={BLACK} className="animate-spin" />,
     }),
     [],
   );
@@ -123,14 +125,14 @@ export default function EmergencyResponseRoute() {
   // We don't need to manually register them here anymore.
 
   useEffect(() => {
-    // Auto-sync when coming online
     if (isOnline) {
       const unsyncedReports = reports.filter(
-        (r) => r.status === "local" || r.status === "pending" || r.status === "failed",
+        (r) =>
+          r.status === "local" || r.status === "pending" || r.status === "failed",
       );
 
       if (unsyncedReports.length > 0) {
-        toastMaroon("Online - syncing reports...", { icon: icons.online });
+        toastBlack("Online - syncing reports...", { icon: icons.online });
         syncReports();
       }
     }
@@ -146,7 +148,6 @@ export default function EmergencyResponseRoute() {
 
     setIsAuthenticated(true);
 
-    // Fetch profile and direct
     const profile = await getUserProfile(user.id);
     if (profile?.is_admin) {
       setCurrentScreen("dashboard");
@@ -154,7 +155,7 @@ export default function EmergencyResponseRoute() {
       setCurrentScreen("home");
     }
 
-    toastMaroon("Logged in successfully", { icon: icons.login });
+    toastBlack("Logged in successfully", { icon: icons.login });
   };
 
   const handleLogout = async () => {
@@ -170,14 +171,14 @@ export default function EmergencyResponseRoute() {
     const choice = await promptInstall();
 
     if (!choice) {
-      toastMaroon("Install prompt unavailable", { icon: icons.info });
+      toastBlack("Install prompt unavailable", { icon: icons.info });
       return;
     }
 
     if (choice.outcome === "accepted") {
-      toastMaroon("Installing Nodus...", { icon: icons.success });
+      toastBlack("Installing Nodus...", { icon: icons.success });
     } else {
-      toastMaroon("Install dismissed", { icon: icons.info });
+      toastBlack("Install dismissed", { icon: icons.info });
     }
   };
 
@@ -197,7 +198,7 @@ export default function EmergencyResponseRoute() {
     };
 
     await db.reports.add(newReport);
-    toastMaroon("Report saved locally", { icon: icons.saved });
+    toastBlack("Report saved locally", { icon: icons.saved });
     setCurrentScreen("home");
 
     if (isOnline) {
@@ -212,12 +213,12 @@ export default function EmergencyResponseRoute() {
     syncPendingCountRef.current += count;
 
     if (syncToastIdRef.current == null) {
-      syncToastIdRef.current = toastMaroonLoading("Syncing reports…", {
+      syncToastIdRef.current = toastBlackLoading("Syncing reports…", {
         icon: icons.syncing,
         description: "Uploading your latest incident data.",
       });
     } else {
-      toastMaroonLoading("Syncing reports…", {
+      toastBlackLoading("Syncing reports…", {
         id: syncToastIdRef.current,
         icon: icons.syncing,
         description: `Uploading… ${syncPendingCountRef.current} remaining.`,
@@ -231,7 +232,7 @@ export default function EmergencyResponseRoute() {
     if (syncToastIdRef.current == null) return;
 
     if (syncPendingCountRef.current > 0) {
-      toastMaroonLoading("Syncing reports…", {
+      toastBlackLoading("Syncing reports…", {
         id: syncToastIdRef.current,
         icon: icons.syncing,
         description: `Uploading… ${syncPendingCountRef.current} remaining.`,
@@ -239,14 +240,12 @@ export default function EmergencyResponseRoute() {
       return;
     }
 
-    // ✅ Completed (update same toast)
-    toastMaroon("Sync completed", {
+    toastBlack("Sync completed", {
       id: syncToastIdRef.current,
       icon: icons.success,
       description: "All pending reports are up to date.",
     });
 
-    // ✅ Auto-dismiss after a short delay
     const toastId = syncToastIdRef.current;
     setTimeout(() => {
       toast.dismiss(toastId);
@@ -284,16 +283,17 @@ export default function EmergencyResponseRoute() {
 
   const syncReports = async () => {
     if (!isOnline) {
-      toastMaroon("Cannot sync while offline", { icon: icons.offline });
+      toastBlack("Cannot sync while offline", { icon: icons.offline });
       return;
     }
 
     const unsyncedReports = reports.filter(
-      (r) => r.status === "local" || r.status === "pending" || r.status === "failed",
+      (r) =>
+        r.status === "local" || r.status === "pending" || r.status === "failed",
     );
 
     if (unsyncedReports.length === 0) {
-      toastMaroon("All reports are already synced", { icon: icons.success });
+      toastBlack("All reports are already synced", { icon: icons.success });
       return;
     }
 
@@ -305,12 +305,12 @@ export default function EmergencyResponseRoute() {
 
   const handleRetrySync = async () => {
     if (!isOnline) {
-      toastMaroon("Cannot retry while offline", { icon: icons.offline });
+      toastBlack("Cannot retry while offline", { icon: icons.offline });
       return;
     }
 
     toastMaroon("Retrying sync...", { icon: icons.retry });
-    await sync();
+    syncSingleReport(reportId);
   };
 
   const pendingCount = reports.filter((r) => r.status !== "synced").length;
@@ -333,24 +333,24 @@ export default function EmergencyResponseRoute() {
             gap: 16,
             alignItems: "center",
             justifyContent: "space-between",
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.08)",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.04)",
           }}
         >
           <div>
-            <p style={{ fontWeight: 600, color: MAROON }}>Install Nodus for offline access</p>
-            <p style={{ margin: 0, color: "#4A4A4A" }}>
-              Add the dashboard to your device for faster incident reporting.
+            <p style={{ fontWeight: 600, color: BLACK, margin: 0 }}>
+              Install Nodus
             </p>
+            <p style={{ margin: 0, color: "#4A4A4A" }}>Report Immediately</p>
           </div>
 
           <div style={{ display: "flex", gap: 12 }}>
             <button
               onClick={handleInstallPWA}
               style={{
-                background: MAROON,
+                background: BLACK,
                 color: WHITE,
                 border: "none",
-                borderRadius: 9999,
+                borderRadius: 1000,
                 padding: "8px 20px",
                 cursor: "pointer",
                 fontWeight: 600,
@@ -362,7 +362,7 @@ export default function EmergencyResponseRoute() {
               onClick={handleDismissInstallBanner}
               style={{
                 background: "transparent",
-                color: MAROON,
+                color: BLACK,
                 border: `1px solid ${BORDER}`,
                 borderRadius: 9999,
                 padding: "8px 20px",
