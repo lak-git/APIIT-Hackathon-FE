@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useGeolocation } from "../../hooks/useGeolocation";
+import { useGeolocation } from "../hooks/useGeolocation";
 import { ArrowLeft, MapPin, Camera, Clock, Save } from "lucide-react";
 
 import { Button } from "./ui/button";

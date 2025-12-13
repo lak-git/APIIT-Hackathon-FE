@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { db } from '../db/db';
-import { supabase } from '../supabaseClient';
+import { db } from '../../db/db';
+import { supabase } from '../../supabaseClient';
 
 export const useSyncManager = () => {
     const [isSyncing, setIsSyncing] = useState(false);
