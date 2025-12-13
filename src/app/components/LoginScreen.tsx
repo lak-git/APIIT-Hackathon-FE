@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { Shield, Eye, EyeOff, ChevronDown } from "lucide-react";
-import { signup, login } from "../services/authService";
-
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
