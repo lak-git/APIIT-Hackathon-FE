@@ -109,10 +109,12 @@ export const useSyncManager = () => {
                     image_url: finalImageUrl,
                     // status: 'active', // Optional: set status for Supabase if needed
                     created_at: incident.createdAt,
-                    occurred_at: incident.timestamp // Map local timestamp to occurred_at
+                    occurred_at: incident.timestamp, // Map local timestamp to occurred_at
+                    user_id: incident.userId
                 };
 
                 console.log(`[SyncManager] Inserting payload to Supabase:`, payload);
+                console.log(`[SyncManager] Payload user_id:`, payload.user_id);
 
                 const { error: insertError } = await supabase
                     .from('incidents')

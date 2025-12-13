@@ -50,7 +50,7 @@ export const mapReportToIncident = (
 
 export function IncidentProvider({ children }: { children: React.ReactNode }) {
 
-  const { session, isLoading } = useAuth();
+  const { session, isLoading, isAdmin } = useAuth();
 
   // 2. Hook for background syncing (Dexie -> Supabase)
   const { sync } = useSyncManager();
@@ -75,7 +75,27 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
         if (session?.access_token) {
           // SDK Fallback: Use Raw REST Fetch for reliable initial load
           // bypassing potential SDK WebSocket/Client state issues.
-          const rawUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/incidents?select=*&order=created_at.desc`;
+          let rawUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/incidents?select=*&order=created_at.desc`;
+
+          // ✅ Filter by User ID if not Admin
+          // We can check isAdmin from useAuth() hook which we have access to via `session` (partially)
+          // But better to use the `useAuth` hook value if possible. 
+          // However, inside useEffect we have `session`. We can check role via metadata or assuming caller logic.
+          // Since IncidentProvider consumes useAuth(), we can use the `isAdmin` boolean if we expose it or derive it.
+          // Wait, we don't have `isAdmin` in line 53 destructure. Let's add it.
+
+          // (Quick fix without changing destructure widely if needed, but better to get it)
+          // Actually, we need to check the isAdmin logic from AuthProvider.
+          // Assuming we update line 53 first.
+
+          // For now, let's assume we will update line 53 to: const { session, isLoading, isAdmin } = useAuth();
+          // And usage here:
+          if (!isAdmin) {
+            console.log(`[IncidentProvider] Filtering by user_id: ${session.user.id}`);
+            rawUrl += `&user_id=eq.${session.user.id}`;
+          } else {
+            console.log("[IncidentProvider] Admin user - fetching all incidents");
+          }
 
           try {
             console.log("[IncidentProvider] Attempting fetch via Supabase REST API...");
@@ -143,6 +163,11 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
             console.log(`[IncidentProvider] Realtime Event: ${payload.eventType}`);
             const newRow = payload.new as any;
 
+            // ✅ Realtime Filter: If not Admin, ignore events from other users
+            if (!isAdmin && newRow.user_id && newRow.user_id !== session?.user?.id) {
+              return;
+            }
+
             const mappedIncident: Incident = {
               id: newRow.id,
               type: newRow.incident_type as IncidentType,
@@ -181,14 +206,19 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
       return () => { isMounted = false; };
     }
 
-  }, [session?.access_token, isLoading]);
+  }, [session?.access_token, isLoading, isAdmin]);
 
   // 6. Merge Logic
   const incidents = useMemo(() => {
     const merged = [...remoteIncidents];
 
     const unsyncedLocals = localReports.filter(
-      (r) => r.status === 'local' || r.status === 'pending' || r.status === 'failed'
+      (r) => {
+        const isPending = r.status === 'local' || r.status === 'pending' || r.status === 'failed';
+        const isMyReport = r.userId === session?.user?.id;
+        console.log(`[IncidentProvider] Checking local report ${r.id}: userId=${r.userId} session=${session?.user?.id} match=${isMyReport}`);
+        return isPending && isMyReport;
+      }
     );
 
     const mappedLocals = unsyncedLocals.map((r) =>

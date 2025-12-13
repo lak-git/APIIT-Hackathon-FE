@@ -21,7 +21,7 @@ import { compressImage } from "../utils/imageCompressor";
 interface CreateIncidentScreenProps {
   isOnline: boolean;
   onBack: () => void;
-  onSave: (report: Omit<IncidentReport, "id" | "createdAt" | "status">) => void;
+  onSave: (report: Omit<IncidentReport, "id" | "createdAt" | "status" | "userId">) => void;
 }
 
 const INCIDENT_TYPES: IncidentReport["type"][] = [
