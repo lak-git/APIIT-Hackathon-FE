@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Shield, Eye, EyeOff } from "lucide-react";
+import { signup, login, logout, getCurrentUser } from "../services/authService";
 
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -10,14 +11,32 @@ interface LoginScreenProps {
   onLogin: (email: string, password: string) => void;
 }
 
+
 export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false); // hidden by default
+  const [isLogin, setIsLogin] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(email, password);
+    setError(null);
+    setIsLoading(true);
+
+    try {
+      if (isLogin) {
+        await login({ email, password });
+      } else {
+        await signup({ email, password });
+      }
+      onLogin(email, password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -36,12 +55,19 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
         </div>
 
         {/* Login title */}
+        {/* Login title */}
         <p className="text-center text-primary font-semibold text-lg mb-0">
-          Login
+          {isLogin ? "Login" : "Create Account"}
         </p>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
+          {error && (
+            <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-200 rounded-md">
+              {error}
+            </div>
+          )}
+
           {/* Email */}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -51,6 +77,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={isLoading}
               className="
                 bg-input-background
                 border border-primary
@@ -72,6 +99,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                disabled={isLoading}
                 className="
                   bg-input-background
                   border border-primary
@@ -102,13 +130,23 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           </div>
 
           {/* Submit */}
-          <Button type="submit" className="w-full">
-            Login
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? "Loading..." : isLogin ? "Login" : "Sign Up"}
           </Button>
 
-          <p className="text-sm text-muted-foreground text-center m-0 pt-2">
-            Once logged in, you can continue using the app offline
-          </p>
+          <div className="text-center space-y-2">
+            <button
+              type="button"
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-sm text-primary hover:underline"
+            >
+              {isLogin ? "Need an account? Sign up" : "Already have an account? Login"}
+            </button>
+
+            <p className="text-sm text-muted-foreground m-0">
+              Once logged in, you can continue using the app offline
+            </p>
+          </div>
         </form>
       </Card>
     </div>
