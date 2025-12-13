@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState, useEffect } from "react";
+import { createContext, useCallback, useContext, useMemo } from "react";
 
 import type { Incident } from "../types/incident";
 import type { IncidentReport } from "../app/utils/storage";
@@ -42,34 +42,30 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { storage } from "../app/utils/storage";
 
 export function IncidentProvider({ children }: { children: React.ReactNode }) {
-  const [incidents, setIncidents] = useState<Incident[]>([]);
-
   // Directly query Dexie for all reports
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
 
-  // Sync Dexie reports to local state whenever they change
-  useEffect(() => {
-    if (reports) {
-      const mappedIncidents = reports.map((r) =>
-        mapReportToIncident(r, storage.getUser()?.name)
-      );
-      setIncidents(mappedIncidents);
-    }
+  // Derive incidents from Dexie reports
+  const incidents = useMemo(() => {
+    return reports.map((r) => mapReportToIncident(r, storage.getUser()?.name));
   }, [reports]);
+
+  // Backward compatibility / No-op setters since we are now reactive to DB
+  const setIncidents: React.Dispatch<React.SetStateAction<Incident[]>> = useCallback(() => {
+    console.warn("setIncidents is deprecated. Modify Dexie DB directly.");
+  }, []);
 
   const registerFieldIncident = useCallback(
     (report: IncidentReport, reporterName?: string) => {
-      // This might now be redundant if we rely on useLiveQuery, 
-      // but keeping it for compatibility or immediate UI updates if needed.
-      // Logic: Just rely on the useEffect above to catch the DB change.
+      // No-op: Data should be added to Dexie, which will auto-update state
       return mapReportToIncident(report, reporterName);
     },
     [],
   );
 
   const resetToMock = useCallback(() => {
-    // No-op or clear DB? User asked to remove mock.
-    setIncidents([]);
+    // Optional: db.reports.clear(); if we wanted a "Reset" button.
+    // For now, do nothing.
   }, []);
 
   const value = useMemo(
