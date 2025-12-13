@@ -15,7 +15,7 @@ import { usePWAInstallPrompt } from "./hooks/usePWAInstallPrompt";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type IncidentReport } from "../db/db";
 import { storage } from "./utils/storage";
-import { getCurrentUser, getUserProfile } from "./services/authService";
+// Auth is handled via AuthProvider - no direct service imports needed here
 
 import {
   CheckCircle2,
@@ -69,7 +69,7 @@ export default function EmergencyResponseRoute() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
   const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
 
-  const { isAuthenticated, isAdmin, isLoading, logout: authLogout } = useAuth();
+  const { isAuthenticated, isAdmin, isLoading, logout: authLogout, login: authLogin } = useAuth();
   const navigate = useNavigate();
 
 
@@ -132,27 +132,10 @@ export default function EmergencyResponseRoute() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline]);
 
-  const handleLogin = async (email: string, _password: string) => {
-
-
-    const user = await getCurrentUser();
-
-
-    if (!user) return;
-
-    // Set custom storage manually - why? AuthProvider does "sb-session"
-    // storage.ts uses "field_responder_..."
-    storage.setAuthToken("supabase-session");
-    storage.setUser({ email, name: email.split("@")[0] });
-
-
-    const profile = await getUserProfile(user.id);
-    if (profile?.is_admin) {
-      navigate("/command", { replace: true });
-    } else {
-      setCurrentScreen("home");
-    }
-
+  const handleLogin = async (email: string, password: string) => {
+    // Delegate to AuthProvider - it handles session, storage, and state updates
+    await authLogin(email, password);
+    // Navigation is handled by the useEffect that watches isAuthenticated/isAdmin
     toastBlack("Logged in successfully", { icon: icons.login });
   };
 
