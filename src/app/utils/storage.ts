@@ -1,4 +1,16 @@
-
+export interface IncidentReport {
+  id: string;
+  type: 'Flood' | 'Landslide' | 'Road Block' | 'Power Line Down';
+  severity: 1 | 2 | 3 | 4 | 5;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+  timestamp: string;
+  photo?: string;
+  status: 'local' | 'pending' | 'syncing' | 'synced' | 'failed';
+  createdAt: string;
+}
 
 const STORAGE_KEYS = {
   REPORTS: 'field_responder_reports',

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 
 import { LoginScreen } from "./components/LoginScreen";
 import { HomeScreen } from "./components/HomeScreen";
 import { CreateIncidentScreen } from "./components/CreateIncidentScreen";
 import { PendingReportsScreen } from "./components/PendingReportsScreen";
 
+import { useIncidentData } from "../providers/IncidentProvider";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { useLiveQuery } from "dexie-react-hooks";
 import { storage } from "./utils/storage";
@@ -58,6 +59,7 @@ export default function App() {
   
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
   const isOnline = useOnlineStatus();
+  const { registerFieldIncident } = useIncidentData();
 
   // Icons pre-built (maroon)
   const icons = useMemo(
@@ -82,7 +84,14 @@ export default function App() {
       setIsAuthenticated(true);
       setCurrentScreen("home");
     }
-  }, []);
+
+    // Register synced reports from Dexie to the IncidentProvider
+    reports
+      .filter((report) => report.status === "synced")
+      .forEach((report) => {
+        registerFieldIncident(report, storage.getUser()?.name);
+      });
+  }, [registerFieldIncident, reports]);
 
   useEffect(() => {
     // Auto-sync when coming online
@@ -103,7 +112,6 @@ export default function App() {
   }, [isOnline]);
 
   const handleLogin = (email: string, _password: string) => {
-    void _password;
     // Mock authentication
     const mockToken = `token_${Date.now()}`;
     storage.setAuthToken(mockToken);
@@ -113,6 +121,15 @@ export default function App() {
     setCurrentScreen("home");
 
     toastMaroon("Logged in successfully", { icon: icons.login });
+  };
+
+  const handleLogout = () => {
+    storage.clearAuthToken();
+    storage.clearUser();
+    setIsAuthenticated(false);
+    setCurrentScreen("login");
+
+    toastMaroon("Logged out", { icon: icons.logout });
   };
 
   const handleSaveIncident = async (
@@ -150,7 +167,10 @@ export default function App() {
       const success = Math.random() > 0.1; // 90% success rate
 
       if (success) {
-        await db.reports.update(reportId, { status: "synced" });
+        const syncedReport: IncidentReport = { ...report, status: "synced" };
+
+        // React UI updates automatically via useLiveQuery
+        registerFieldIncident(syncedReport, storage.getUser()?.name);
 
         // ✅ Report saved successfully / synced successfully
         toastMaroon("Report synced successfully", { icon: icons.success });
@@ -196,12 +216,7 @@ export default function App() {
   const pendingCount = reports.filter((r) => r.status !== "synced").length;
 
   if (!isAuthenticated) {
-    return (
-      <>
-        <LoginScreen onLogin={handleLogin} />
-        <Toaster position="top-center" richColors />
-      </>
-    );
+    return <LoginScreen onLogin={handleLogin} />;
   }
 
   return (
@@ -212,6 +227,7 @@ export default function App() {
           pendingCount={pendingCount}
           onCreateIncident={() => setCurrentScreen("create")}
           onViewReports={() => setCurrentScreen("reports")}
+          onLogout={handleLogout}
         />
       )}
 
@@ -232,8 +248,6 @@ export default function App() {
           onRetry={handleRetrySync}
         />
       )}
-
-      <Toaster position="top-center" richColors />
     </>
   );
 }
