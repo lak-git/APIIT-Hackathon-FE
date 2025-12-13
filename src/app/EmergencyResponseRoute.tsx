@@ -81,35 +81,16 @@ export default function EmergencyResponseRoute() {
   );
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const user = await getCurrentUser();
-      if (user) {
-        setIsAuthenticated(true);
-        const profile = await getUserProfile(user.id);
+    // Check if user is already authenticated
+    const token = storage.getAuthToken();
+    if (token) {
+      setIsAuthenticated(true);
+      setCurrentScreen("home");
+    }
+  }, []);
 
-        // Update local storage for compatibility
-        storage.setAuthToken("supabase-session"); // Placeholder or actual token if needed by other parts
-        storage.setUser({
-          email: user.email || "",
-          name: user.email?.split("@")[0] || "User"
-        });
-
-        if (profile?.isAdmin) {
-          setCurrentScreen("dashboard");
-        } else {
-          setCurrentScreen("home");
-        }
-      }
-    };
-    checkAuth();
-
-    // Register synced reports from Dexie to the IncidentProvider
-    reports
-      .filter((report) => report.status === "synced")
-      .forEach((report) => {
-        registerFieldIncident(report, storage.getUser()?.name);
-      });
-  }, [registerFieldIncident, reports]);
+  // NOTE: Reports are now automatically synced to IncidentProvider via its internal useLiveQuery.
+  // We don't need to manually register them here anymore.
 
   useEffect(() => {
     // Auto-sync when coming online
