@@ -7,7 +7,7 @@ import { registerSW } from "virtual:pwa-register";
 import App from "./App";
 import EmergencyResponseRoute from "./app/EmergencyResponseRoute";
 import CommandDashboardRoute from "./routes/CommandDashboardRoute";
-import { ProtectedRoute } from "./components/ProtectedRoute";
+import { ProtectedRoute } from "./routes/ProtectedRoute";
 import "./styles/index.css";
 
 const router = createBrowserRouter([

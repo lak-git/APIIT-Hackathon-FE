@@ -4,6 +4,7 @@ import { supabase } from "../supabaseClient";
 import type { Session, User } from "@supabase/supabase-js";
 import { getUserProfile, login as apiLogin, logout as apiLogout } from "../app/services/authService";
 import { useOnlineStatus } from "../app/hooks/useOnlineStatus";
+import { storage } from "../app/utils/storage";
 
 interface AuthContextType {
     user: User | null;
@@ -66,9 +67,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const syncAuth = async () => {
             const { data: { session: currentSession } } = await supabase.auth.getSession();
+            const hasLocalSession = localStorage.getItem("sb-session");
 
-            if (currentSession) {
-                // Valid session
+            if (currentSession && hasLocalSession) {
+                // Valid session AND we intended to be logged in
                 setSession(currentSession);
                 setUser(currentSession.user);
 
@@ -83,10 +85,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 localStorage.setItem("sb-isAdmin", String(adminStatus));
 
                 setIsAuthenticated(true);
+            } else if (currentSession && !hasLocalSession) {
+                // Supabase thinks we are logged in, but our local app says we logged out.
+                // Force logout on Supabase to match local state.
+                console.warn("Supabase session exists but local session missing. Forcing logout.");
+                await supabase.auth.signOut();
+                handleLogout(); // Ensure local state is clean
             } else {
-                // Invalid session, potential expiry.
-                // If we are online and Supabase says no session, we should probably logout or stay in public mode.
-                // If we previously thought we were logged in (from cache), this means the cache is stale/invalid.
+                // Invalid session
                 if (isAuthenticated) {
                     console.warn("Online but no Supabase session - clearing local session");
                     handleLogout();
@@ -160,6 +166,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem("sb-session");
         localStorage.removeItem("sb-user");
         localStorage.removeItem("sb-isAdmin");
+
+        // Clear application specific storage (Field Responder data)
+        // We import this dynamically or just use the storage object if imported
+        // Ideally we should import { storage } from "../app/utils/storage";
+        // But to avoid circular deps if any, we can check keys manually or import it.
+        // Let's import it at the top.
+        storage.clearAllData();
 
         setUser(null);
         setSession(null);
