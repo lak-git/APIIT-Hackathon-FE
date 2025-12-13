@@ -51,20 +51,27 @@ export default function CommandDashboardRoute() {
     });
   }, [incidents, filters]);
 
+  // Split filtered incidents into Active (for Map/Top Table) and Resolved (Bottom Table)
+  const activeIncidents = useMemo(() => filteredIncidents.filter(i => i.status !== 'Resolved'), [filteredIncidents]);
+  const resolvedIncidents = useMemo(() => filteredIncidents.filter(i => i.status === 'Resolved'), [filteredIncidents]);
+
   useEffect(() => {
+    // Determine the relevant list to select from based on where the selection came from?
+    // Actually, we just need to ensure if an incident is selected, it can be from either list.
+    // Auto-selection logic might need adjustment if we want to default to active only.
     if (
       selectedIncident &&
       !filteredIncidents.some((i) => i.id === selectedIncident.id)
     ) {
-      const next = filteredIncidents[0] ?? null;
+      const next = activeIncidents[0] ?? resolvedIncidents[0] ?? null;
       setSelectedIncident(next);
       if (!next) setIsPanelOpen(false);
     }
 
-    if (!selectedIncident && filteredIncidents.length > 0) {
-      setSelectedIncident(filteredIncidents[0]);
+    if (!selectedIncident && activeIncidents.length > 0) {
+      setSelectedIncident(activeIncidents[0]);
     }
-  }, [filteredIncidents, selectedIncident]);
+  }, [filteredIncidents, activeIncidents, resolvedIncidents, selectedIncident]);
 
   const handleIncidentClick = (incident: Incident) => {
     setSelectedIncident(incident);
@@ -88,11 +95,15 @@ export default function CommandDashboardRoute() {
         <>
           <FilterControls filters={filters} onFilterChange={setFilters} />
 
-          {/* ✅ INCIDENT AREA CARD */}
+          {/* ✅ ACTIVE INCIDENTS AREA */}
           <div className="bg-white/90 rounded-lg shadow-md border border-gray-300 p-4 space-y-4">
+            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+              <span className="w-2 h-8 bg-red-600 rounded-full"></span>
+              Active Operations
+            </h2>
             <div className="h-[380px] rounded-lg overflow-hidden border border-gray-300">
               <MapView
-                incidents={filteredIncidents}
+                incidents={activeIncidents}
                 selectedIncident={selectedIncident}
                 onIncidentClick={handleIncidentClick}
               />
@@ -100,12 +111,29 @@ export default function CommandDashboardRoute() {
 
             <div className="h-[500px] rounded-lg border border-gray-300 bg-white">
               <IncidentTable
-                incidents={filteredIncidents}
+                incidents={activeIncidents}
                 selectedIncident={selectedIncident}
                 onIncidentClick={handleIncidentClick}
               />
             </div>
           </div>
+
+          {/* ✅ RESOLVED INCIDENTS AREA */}
+          {resolvedIncidents.length > 0 && (
+            <div className="bg-white/90 rounded-lg shadow-md border border-gray-300 p-4 space-y-4 mt-8">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <span className="w-2 h-8 bg-green-600 rounded-full"></span>
+                Resolved Operations
+              </h2>
+              <div className="h-[400px] rounded-lg border border-gray-300 bg-white">
+                <IncidentTable
+                  incidents={resolvedIncidents}
+                  selectedIncident={selectedIncident}
+                  onIncidentClick={handleIncidentClick}
+                />
+              </div>
+            </div>
+          )}
 
           <IncidentDetailPanel
             incident={selectedIncident}
