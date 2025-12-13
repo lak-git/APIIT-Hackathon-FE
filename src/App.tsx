@@ -4,7 +4,7 @@ import { IncidentDetailPanel } from './components/IncidentDetailPanel';
 import { MapView } from './components/MapView';
 import { FilterControls } from './components/FilterControls';
 import { SummaryBadges } from './components/SummaryBadges';
-import { Incident, IncidentType } from './types/incident';
+import type { Incident, IncidentType } from './types/incident';
 import { mockIncidents } from './data/mockIncidents';
 
 export default function App() {
@@ -69,7 +69,7 @@ export default function App() {
                 <h2 className="text-xl">Incident Map</h2>
               </div>
               <div className="flex-1 min-h-[400px]">
-                <MapView 
+                <MapView
                   incidents={filteredIncidents}
                   selectedIncident={selectedIncident}
                   onIncidentClick={handleIncidentClick}
@@ -83,7 +83,7 @@ export default function App() {
                 <h2 className="text-xl">Live Incidents</h2>
               </div>
               <div className="flex-1 overflow-auto">
-                <IncidentTable 
+                <IncidentTable
                   incidents={filteredIncidents}
                   selectedIncident={selectedIncident}
                   onIncidentClick={handleIncidentClick}
