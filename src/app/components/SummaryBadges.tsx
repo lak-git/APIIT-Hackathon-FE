@@ -7,8 +7,6 @@ import {
   AlertCircle,
   Shield,
   LogOut,
-  Home as HomeIcon,
-  Users,
 } from "lucide-react";
 
 interface SummaryBadgesProps {

@@ -20,15 +20,15 @@ export const useSyncManager = () => {
     }, []);
 
     const sync = useCallback(async () => {
-        console.log("[SyncManager] Sync triggered");
-        
+        // console.log("[SyncManager] Sync triggered");
+
         if (!navigator.onLine) {
             console.log("[SyncManager] Offline, skipping sync.");
             return;
         }
 
         if (isSyncing) {
-            console.log("[SyncManager] Sync already in progress.");
+            // console.log("[SyncManager] Sync already in progress.");
             return;
         }
 
@@ -36,22 +36,22 @@ export const useSyncManager = () => {
         setSyncError(null);
 
         try {
-            console.log("[SyncManager] Querying Dexie for pending reports...");
+            // console.log("[SyncManager] Querying Dexie for pending reports...");
             // Check for any report that needs syncing (local, pending, or failed from previous attempts)
             const pendingIncidents = await db.reports
                 .where('status')
                 .anyOf('local', 'pending', 'failed')
                 .toArray();
 
-            console.log('[SyncManager] Pending incidents found:', pendingIncidents);
+            // console.log('[SyncManager] Pending incidents found:', pendingIncidents);
 
             if (pendingIncidents.length === 0) {
-                console.log("[SyncManager] No pending incidents found.");
+                // console.log("[SyncManager] No pending incidents found.");
                 setIsSyncing(false);
                 return;
             }
 
-            console.log(`[SyncManager] Found ${pendingIncidents.length} incidents to sync.`);
+            // console.log(`[SyncManager] Found ${pendingIncidents.length} incidents to sync.`);
 
             for (const incident of pendingIncidents) {
                 console.log(`[SyncManager] Processing incident ${incident.id}`, incident);
@@ -78,7 +78,7 @@ export const useSyncManager = () => {
                             // Assuming we should retry later if upload fails.
                             continue;
                         }
-                        
+
                         console.log(`[SyncManager] Image uploaded successfully:`, data);
 
                         if (data) {
@@ -111,7 +111,7 @@ export const useSyncManager = () => {
                     created_at: incident.createdAt,
                     occurred_at: incident.timestamp // Map local timestamp to occurred_at
                 };
-                
+
                 console.log(`[SyncManager] Inserting payload to Supabase:`, payload);
 
                 const { error: insertError } = await supabase
@@ -148,7 +148,7 @@ export const useSyncManager = () => {
             setSyncError(err.message || "Unknown sync error");
         } finally {
             setIsSyncing(false);
-            console.log("[SyncManager] Sync process finished.");
+            // console.log("[SyncManager] Sync process finished.");
         }
     }, [isSyncing, updatePendingCount]);
 
