@@ -6,7 +6,6 @@ import {
   Zap,
   AlertCircle,
   Shield,
-  LogOut,
 } from "lucide-react";
 
 interface SummaryBadgesProps {
