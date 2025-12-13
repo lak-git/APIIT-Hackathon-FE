@@ -1,9 +1,11 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import React, { createContext, useCallback, useContext, useMemo } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 
 import type { Incident } from "../types/incident";
 import type { IncidentReport } from "../app/utils/storage";
-import { mockIncidents } from "../data/mockIncidents";
 import { useSyncManager } from "../hooks/useSyncManager";
+import { db } from "../db/db";
+import { storage } from "../app/utils/storage";
 
 interface IncidentContextValue {
   incidents: Incident[];
@@ -41,25 +43,31 @@ export const mapReportToIncident = (
 
 export function IncidentProvider({ children }: { children: React.ReactNode }) {
   useSyncManager();
-  const [incidents, setIncidents] = useState<Incident[]>(() => [...mockIncidents]);
+  
+  // Directly query Dexie for all reports
+  const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
+
+  // Derive incidents from Dexie reports
+  const incidents = useMemo(() => {
+    return reports.map((r) => mapReportToIncident(r, storage.getUser()?.name));
+  }, [reports]);
+
+  // Backward compatibility / No-op setters since we are now reactive to DB
+  const setIncidents: React.Dispatch<React.SetStateAction<Incident[]>> = useCallback(() => {
+    console.warn("setIncidents is deprecated. Modify Dexie DB directly.");
+  }, []);
 
   const registerFieldIncident = useCallback(
     (report: IncidentReport, reporterName?: string) => {
-      const mapped = mapReportToIncident(report, reporterName);
-      setIncidents((prev) => {
-        const alreadyExists = prev.some((incident) => incident.id === mapped.id);
-        if (alreadyExists) {
-          return prev;
-        }
-        return [mapped, ...prev];
-      });
-      return mapped;
+      // No-op: Data should be added to Dexie, which will auto-update state
+      return mapReportToIncident(report, reporterName);
     },
     [],
   );
 
   const resetToMock = useCallback(() => {
-    setIncidents([...mockIncidents]);
+    // Optional: db.reports.clear(); if we wanted a "Reset" button.
+    // For now, do nothing.
   }, []);
 
   const value = useMemo(
