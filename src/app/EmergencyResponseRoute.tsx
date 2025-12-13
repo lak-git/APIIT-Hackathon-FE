@@ -8,12 +8,14 @@ import { CreateIncidentScreen } from "./components/CreateIncidentScreen";
 
 import { PendingReportsScreen } from "./components/PendingReportsScreen";
 
+import { useAuth } from "../providers/AuthProvider";
 import { useIncidentData } from "../providers/IncidentProvider";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { usePWAInstallPrompt } from "./hooks/usePWAInstallPrompt";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type IncidentReport } from "../db/db";
-import { useAuth } from "../providers/AuthProvider";
+import { storage } from "./utils/storage";
+import { getCurrentUser, getUserProfile } from "./services/authService";
 
 import {
   CheckCircle2,
@@ -29,57 +31,65 @@ import {
 
 type Screen = "login" | "home" | "create" | "reports";
 
-const MAROON = "#800020";
+// ✅ Maroon -> Black
+const BLACK = "#000000";
+// ✅ Beige -> White
 const WHITE = "#FFFFFF";
 const BORDER = "#E5E5E5";
 
 /**
  * One consistent toast style for the whole app:
  * - White background
- * - Maroon text + icon
+ * - Black text + icon
  */
-function toastMaroon(
+function toastBlack(
   message: string,
   opts?: {
     icon?: React.ReactNode;
     description?: string;
+    id?: string | number;
   },
 ) {
   toast(message, {
+    id: opts?.id,
     description: opts?.description,
     icon: opts?.icon,
+    position: "bottom-center",
     style: {
       background: WHITE,
-      color: MAROON,
+      color: BLACK,
       border: `1px solid ${BORDER}`,
     },
   });
 }
 
+// ✅ Loading toast (syncing)
 export default function EmergencyResponseRoute() {
-  const { isAuthenticated, isAdmin, login, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
   const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
+
+  const { isAuthenticated, isAdmin, logout: authLogout } = useAuth();
   const navigate = useNavigate();
 
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
   const isOnline = useOnlineStatus();
-  const { sync } = useIncidentData();
+  const { registerFieldIncident } = useIncidentData();
   const { canInstall: canInstallPWA, promptInstall, dismissPrompt } = usePWAInstallPrompt();
   const shouldShowInstallBanner = canInstallPWA && !installBannerDismissed;
 
-  // Icons pre-built (maroon)
+  // Icons pre-built (black)
   const icons = useMemo(
     () => ({
-      success: <CheckCircle2 size={18} color={MAROON} />,
-      info: <Info size={18} color={MAROON} />,
-      error: <XCircle size={18} color={MAROON} />,
-      saved: <Save size={18} color={MAROON} />,
-      login: <LogIn size={18} color={MAROON} />,
-      logout: <LogOut size={18} color={MAROON} />,
-      retry: <RefreshCw size={18} color={MAROON} />,
-      online: <Wifi size={18} color={MAROON} />,
-      offline: <WifiOff size={18} color={MAROON} />,
+      success: <CheckCircle2 size={18} color={BLACK} />,
+      info: <Info size={18} color={BLACK} />,
+      error: <XCircle size={18} color={BLACK} />,
+      saved: <Save size={18} color={BLACK} />,
+      login: <LogIn size={18} color={BLACK} />,
+      logout: <LogOut size={18} color={BLACK} />,
+      retry: <RefreshCw size={18} color={BLACK} />,
+      online: <Wifi size={18} color={BLACK} />,
+      offline: <WifiOff size={18} color={BLACK} />,
+      syncing: <RefreshCw size={18} color={BLACK} className="animate-spin" />,
     }),
     [],
   );
@@ -87,64 +97,67 @@ export default function EmergencyResponseRoute() {
   useEffect(() => {
     if (isAuthenticated) {
       if (isAdmin) {
-        navigate("/command");
-      } else if (currentScreen === "login") {
-        setCurrentScreen("home");
+        navigate("/command", { replace: true });
+      } else {
+        setCurrentScreen((prev) => (prev === "login" ? "home" : prev));
       }
     } else {
       setCurrentScreen("login");
     }
-  }, [isAuthenticated, isAdmin, currentScreen, navigate]);
+  }, [isAuthenticated, isAdmin, navigate]);
 
   // NOTE: Reports are now automatically synced to IncidentProvider via its internal useLiveQuery.
   // We don't need to manually register them here anymore.
 
   useEffect(() => {
-    // Auto-sync when coming online
     if (isOnline) {
       const unsyncedReports = reports.filter(
-        (r) => r.status === "local" || r.status === "pending" || r.status === "failed",
+        (r) =>
+          r.status === "local" || r.status === "pending" || r.status === "failed",
       );
 
       if (unsyncedReports.length > 0) {
-        toastMaroon("Online - syncing reports...", { icon: icons.online });
+        toastBlack("Online - syncing reports...", { icon: icons.online });
         syncReports();
       }
-    } else {
-      // Optional: show offline message (remove if you don't want it)
-      // toastMaroon("Offline mode enabled", { icon: icons.offline });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline]);
 
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      await login(email, password);
-      toastMaroon("Logged in successfully", { icon: icons.login });
-    } catch (e) {
-      console.error(e);
-      toastMaroon("Login failed", { icon: icons.error });
+  const handleLogin = async (email: string, _password: string) => {
+    const user = await getCurrentUser();
+    if (!user) return;
+
+    storage.setAuthToken("supabase-session");
+    storage.setUser({ email, name: email.split("@")[0] });
+
+    const profile = await getUserProfile(user.id);
+    if (profile?.is_admin) {
+      navigate("/command", { replace: true });
+    } else {
+      setCurrentScreen("home");
     }
+
+    toastBlack("Logged in successfully", { icon: icons.login });
   };
 
   const handleLogout = async () => {
-    await logout();
-    // State update handles via useEffect
-    toastMaroon("Logged out", { icon: icons.logout });
+    await authLogout();
+    toastBlack("Logged out", { icon: icons.logout });
   };
 
   const handleInstallPWA = async () => {
     const choice = await promptInstall();
 
     if (!choice) {
-      toastMaroon("Install prompt unavailable", { icon: icons.info });
+      toastBlack("Install prompt unavailable", { icon: icons.info });
       return;
     }
 
     if (choice.outcome === "accepted") {
-      toastMaroon("Installing Nodus...", { icon: icons.success });
+      toastBlack("Installing Nodus...", { icon: icons.success });
     } else {
-      toastMaroon("Install dismissed", { icon: icons.info });
+      toastBlack("Install dismissed", { icon: icons.info });
     }
   };
 
@@ -164,46 +177,71 @@ export default function EmergencyResponseRoute() {
     };
 
     await db.reports.add(newReport);
-
-    // ✅ Report saved locally (white bg, maroon text + maroon icon)
-    toastMaroon("Report saved locally", { icon: icons.saved });
-
+    toastBlack("Report saved locally", { icon: icons.saved });
     setCurrentScreen("home");
 
-    // Attempt to sync if online
     if (isOnline) {
-      sync();
+      syncReports();
     }
   };
 
+  const syncSingleReport = async (reportId: string) => {
+    const report = reports.find((r) => r.id === reportId);
+    if (!report || !isOnline) return;
+
+    // Update status to syncing
+    await db.reports.update(reportId, { status: "syncing" });
+
+    // Simulate API call
+    setTimeout(async () => {
+      const success = Math.random() > 0.1; // 90% success rate
+
+      if (success) {
+        const syncedReport: IncidentReport = { ...report, status: "synced" };
+
+        // React UI updates automatically via useLiveQuery
+        registerFieldIncident(syncedReport, storage.getUser()?.name);
+
+        // ✅ Report saved successfully / synced successfully
+        toastBlack("Report synced successfully", { icon: icons.success });
+      } else {
+        await db.reports.update(reportId, { status: "failed" });
+
+        toastBlack("Sync failed - will retry later", { icon: icons.error });
+      }
+    }, 2000);
+  };
 
   const syncReports = async () => {
     if (!isOnline) {
-      toastMaroon("Cannot sync while offline", { icon: icons.offline });
+      toastBlack("Cannot sync while offline", { icon: icons.offline });
       return;
     }
 
     const unsyncedReports = reports.filter(
-      (r) => r.status === "local" || r.status === "pending" || r.status === "failed",
+      (r) =>
+        r.status === "local" || r.status === "pending" || r.status === "failed",
     );
 
     if (unsyncedReports.length === 0) {
-      toastMaroon("All reports are already synced", { icon: icons.success });
+      toastBlack("All reports are already synced", { icon: icons.success });
       return;
     }
 
-    toastMaroon("Syncing reports...", { icon: icons.online });
-    await sync();
+    // Sync each report
+    for (const report of unsyncedReports) {
+      syncSingleReport(report.id);
+    }
   };
 
-  const handleRetrySync = async () => {
+  const handleRetrySync = async (reportId: string) => {
     if (!isOnline) {
-      toastMaroon("Cannot retry while offline", { icon: icons.offline });
+      toastBlack("Cannot retry while offline", { icon: icons.offline });
       return;
     }
 
-    toastMaroon("Retrying sync...", { icon: icons.retry });
-    await sync();
+    toastBlack("Retrying sync...", { icon: icons.retry });
+    syncSingleReport(reportId);
   };
 
   const pendingCount = reports.filter((r) => r.status !== "synced").length;
@@ -226,24 +264,24 @@ export default function EmergencyResponseRoute() {
             gap: 16,
             alignItems: "center",
             justifyContent: "space-between",
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.08)",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.04)",
           }}
         >
           <div>
-            <p style={{ fontWeight: 600, color: MAROON }}>Install Nodus for offline access</p>
-            <p style={{ margin: 0, color: "#4A4A4A" }}>
-              Add the dashboard to your device for faster incident reporting.
+            <p style={{ fontWeight: 600, color: BLACK, margin: 0 }}>
+              Install Nodus
             </p>
+            <p style={{ margin: 0, color: "#4A4A4A" }}>Report Immediately</p>
           </div>
 
           <div style={{ display: "flex", gap: 12 }}>
             <button
               onClick={handleInstallPWA}
               style={{
-                background: MAROON,
+                background: BLACK,
                 color: WHITE,
                 border: "none",
-                borderRadius: 9999,
+                borderRadius: 1000,
                 padding: "8px 20px",
                 cursor: "pointer",
                 fontWeight: 600,
@@ -255,7 +293,7 @@ export default function EmergencyResponseRoute() {
               onClick={handleDismissInstallBanner}
               style={{
                 background: "transparent",
-                color: MAROON,
+                color: BLACK,
                 border: `1px solid ${BORDER}`,
                 borderRadius: 9999,
                 padding: "8px 20px",
@@ -293,7 +331,7 @@ export default function EmergencyResponseRoute() {
           reports={reports}
           onBack={() => setCurrentScreen("home")}
           onSync={syncReports}
-          onRetry={() => handleRetrySync()}
+          onRetry={handleRetrySync}
         />
       )}
     </>

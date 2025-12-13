@@ -9,9 +9,9 @@ export default function App() {
 	return (
 		<AuthProvider>
 			<IncidentProvider>
-				<div className="min-h-screen bg-[#FAF3E8] text-[#4A1A1A]">
+				<div className="min-h-screen bg-[#FFFFFF] text-[#4A1A1A]">
 
-					<main className="mx-auto w-full max-w-6xl px-4 py-6">
+					<main className="mx-auto w-full max-w-6xl ">
 						<Outlet />
 					</main>
 				</div>

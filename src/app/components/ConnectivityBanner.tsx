@@ -11,7 +11,7 @@ export function ConnectivityBanner({ isOnline }: ConnectivityBannerProps) {
         "flex items-center justify-center gap-3 px-4 py-3 border-b",
         "transition-colors duration-300",
         isOnline
-          ? "bg-emerald-800 border-emerald-900 text-white"
+          ? "bg-[#15E16C] border-[#15E16C] text-white"
           : "bg-[#6B1B2B] border-[#571522] text-white",
       ].join(" ")}
     >
