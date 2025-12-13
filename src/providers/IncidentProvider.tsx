@@ -220,32 +220,53 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resolveIncident = useCallback(async (id: string) => {
-    // Optimistic Update
+    // 1. Optimistic Update (UI updates immediately)
     setRemoteIncidents(prev => prev.map(inc =>
       inc.id === id ? { ...inc, status: 'Resolved' } : inc
     ));
 
-    try {
-      const { error } = await supabase
-        .from('incidents')
-        .update({ status: 'Resolved' })
-        .eq('id', id);
+    console.log(`[IncidentProvider] resolving incident ${id}. Using REST API fallback.`);
 
-      if (error) {
-        console.error("Failed to mark incident as done. Details:", {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        throw error;
+    try {
+      if (!session?.access_token) {
+        console.error("[IncidentProvider] Cannot resolve: No session token available.");
+        // Revert optimistic update here if needed
+        return;
       }
+
+      // 2. Use Raw REST API for reliability (SDK has known issues in this env)
+      const updateUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/incidents?id=eq.${id}`;
+
+      const response = await fetch(updateUrl, {
+        method: 'PATCH',
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation' // Ask for the updated row back
+        },
+        body: JSON.stringify({ status: 'Resolved' })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[IncidentProvider] REST Update Failed: ${response.status} ${response.statusText}`, errorText);
+        throw new Error(`Failed to update incident: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log("[IncidentProvider] REST Update Success:", data);
+
+      if (Array.isArray(data) && data.length === 0) {
+        console.warn("[IncidentProvider] Update succeeded but returned no rows. Check RLS policies or ID.");
+      }
+
     } catch (e: any) {
-      console.error("Error resolving incident:", e);
-      // Revert optimistic update if needed
-      // fetchIncidents();
+      console.error("[IncidentProvider] Error resolving incident:", e);
+      // Optional: Revert optimistic update if API fails
+      // setRemoteIncidents(prev => ... revert ... );
     }
-  }, []);
+  }, [session?.access_token]);
 
   const value = useMemo(
     () => ({
