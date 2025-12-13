@@ -63,9 +63,39 @@ function toastBlack(
   });
 }
 
+import { useGeolocation } from "./hooks/useGeolocation";
+import { calculateDistance } from "./utils/geo";
+
 // ✅ Loading toast (syncing)
 export default function EmergencyResponseRoute() {
   const { registerFieldIncident, incidents: activeIncidents } = useIncidentData();
+  const { latitude, longitude } = useGeolocation();
+  
+  // Filter for nearby incidents (last 60 min, < 1km)
+  const nearbyIncidents = useMemo(() => {
+    if (!latitude || !longitude) return [];
+
+    const now = new Date();
+    const SIXTY_MINUTES_MS = 60 * 60 * 1000;
+
+    return activeIncidents.filter((incident) => {
+      // 1. Check time (last 60 mins)
+      const timeDiff = now.getTime() - incident.timestamp.getTime();
+      const isRecent = timeDiff >= 0 && timeDiff <= SIXTY_MINUTES_MS;
+
+      if (!isRecent) return false;
+
+      // 2. Check distance (< 1km)
+      const distKm = calculateDistance(
+        latitude,
+        longitude,
+        incident.location.lat,
+        incident.location.lng
+      );
+      
+      return distKm <= 1.0;
+    });
+  }, [activeIncidents, latitude, longitude]);
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
   const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
 
@@ -338,6 +368,7 @@ export default function EmergencyResponseRoute() {
           onViewReports={() => setCurrentScreen("reports")}
           onLogout={handleLogout}
           remoteIncidents={activeIncidents}
+          nearbyIncidents={nearbyIncidents}
         />
       )}
 
