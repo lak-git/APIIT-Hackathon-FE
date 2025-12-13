@@ -103,8 +103,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline]);
 
-  const handleLogin = (email: string, _password: string) => {
-    void _password;
+  const handleLogin = (email: string, password: string) => {
     // Mock authentication
     const mockToken = `token_${Date.now()}`;
     storage.setAuthToken(mockToken);
@@ -114,6 +113,15 @@ export default function App() {
     setCurrentScreen("home");
 
     toastMaroon("Logged in successfully", { icon: icons.login });
+  };
+
+  const handleLogout = () => {
+    storage.clearAuthToken();
+    storage.clearUser();
+    setIsAuthenticated(false);
+    setCurrentScreen("login");
+
+    toastMaroon("Logged out", { icon: icons.logout });
   };
 
   const handleSaveIncident = (

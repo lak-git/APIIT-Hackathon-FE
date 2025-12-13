@@ -15,6 +15,7 @@ import {
 
 import { ConnectivityBanner } from "./ConnectivityBanner";
 import type { IncidentReport } from "../utils/storage";
+import { compressImage } from "../utils/imageCompressor";
 
 interface CreateIncidentScreenProps {
   isOnline: boolean;
@@ -96,16 +97,32 @@ export function CreateIncidentScreen({
     return () => window.clearTimeout(t);
   }, [captureLocation]);
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result;
-      if (typeof result === "string") setPhoto(result);
-    };
-    reader.readAsDataURL(file);
+    try {
+      // Compress the image
+      const compressedBlob = await compressImage(file);
+
+      // Convert to base64 for display/storage
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result;
+        if (typeof result === "string") setPhoto(result);
+      };
+      reader.readAsDataURL(compressedBlob);
+
+    } catch (error) {
+      console.error("Image compression failed:", error);
+      // Fallback to original file if compression fails
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result;
+        if (typeof result === "string") setPhoto(result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
