@@ -53,7 +53,7 @@ function toastMaroon(
   });
 }
 
-export default function App() {
+export default function EmergencyResponseRoute() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
