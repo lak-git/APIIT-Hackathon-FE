@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Shield, Eye, EyeOff } from "lucide-react";
+import { Shield, Eye, EyeOff, ChevronDown } from "lucide-react";
+import { signup, login } from "../services/authService";
 
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -13,6 +14,14 @@ interface LoginScreenProps {
 export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  // ✅ NEW (create-account extra fields)
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [organization, setOrganization] = useState("");
+  const [designation, setDesignation] = useState("");
+  const [region, setRegion] = useState("");
+
   const [showPassword, setShowPassword] = useState(false); // hidden by default
   const [isLogin, setIsLogin] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +71,32 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             </div>
           )}
 
-          {/* Email */}
+          {/* ✅ Create Account extra fields (ORDER AS REQUESTED) */}
+          {!isLogin && (
+            <>
+              {/* 1. Full Name */}
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name</Label>
+                <Input
+                  id="fullName"
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="
+                    bg-input-background
+                    border border-primary
+                    rounded-lg
+                    focus-visible:ring-2
+                    focus-visible:ring-primary/30
+                  "
+                />
+              </div>
+            </>
+          )}
+
+          {/* 2. Email */}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -82,7 +116,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
             />
           </div>
 
-          {/* Password */}
+          {/* ✅ Password should be after email */}
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
 
@@ -122,6 +156,114 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               </button>
             </div>
           </div>
+
+          {/* ✅ Create Account extra fields continue */}
+          {!isLogin && (
+            <>
+              {/* 3. Phone */}
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="
+                    bg-input-background
+                    border border-primary
+                    rounded-lg
+                    focus-visible:ring-2
+                    focus-visible:ring-primary/30
+                  "
+                />
+              </div>
+
+              {/* 4. Organization (dropdown) */}
+              <div className="space-y-2">
+                <Label htmlFor="organization">Organization</Label>
+
+                <div className="relative">
+                  <select
+                    id="organization"
+                    value={organization}
+                    onChange={(e) => setOrganization(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    className={[
+                      "w-full appearance-none",
+                      "bg-input-background",
+                      "border border-primary",
+                      "rounded-lg",
+                      "px-3 py-2 pr-10",
+                      "text-base",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+                      "disabled:opacity-50 disabled:cursor-not-allowed",
+                    ].join(" ")}
+                  >
+                    <option value="" disabled>
+                      Select an organization
+                    </option>
+                    <option value="Disaster Management Centre">
+                      Disaster Management Centre
+                    </option>
+                    <option value="Sri Lanka Armed Forces">
+                      Sri Lanka Armed Forces
+                    </option>
+                    <option value="Sri Lanka Police">Sri Lanka Police</option>
+                    <option value="Fire Service Department">
+                      Fire Service Department
+                    </option>
+                    <option value="Suwa Seriya">Suwa Seriya</option>
+                  </select>
+
+                  {/* nicer dropdown chevron */}
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary opacity-80" />
+                </div>
+              </div>
+
+              {/* 5. Designation */}
+              <div className="space-y-2">
+                <Label htmlFor="designation">Designation</Label>
+                <Input
+                  id="designation"
+                  type="text"
+                  value={designation}
+                  onChange={(e) => setDesignation(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="
+                    bg-input-background
+                    border border-primary
+                    rounded-lg
+                    focus-visible:ring-2
+                    focus-visible:ring-primary/30
+                  "
+                />
+              </div>
+
+              {/* 6. Region */}
+              <div className="space-y-2">
+                <Label htmlFor="region">Region</Label>
+                <Input
+                  id="region"
+                  type="text"
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="
+                    bg-input-background
+                    border border-primary
+                    rounded-lg
+                    focus-visible:ring-2
+                    focus-visible:ring-primary/30
+                  "
+                />
+              </div>
+            </>
+          )}
 
           {/* Submit */}
           <Button type="submit" className="w-full" disabled={isLoading}>
