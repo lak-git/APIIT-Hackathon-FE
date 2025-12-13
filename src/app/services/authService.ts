@@ -28,10 +28,10 @@ export async function getCurrentUser(): Promise<User | null> {
     return user;
 }
 
-export async function getUserProfile(userId: string): Promise<{ isAdmin: boolean } | null> {
+export async function getUserProfile(userId: string): Promise<{ is_admin: boolean } | null> {
     const { data, error } = await supabase
         .from('user_profiles')
-        .select('isAdmin')
+        .select('is_admin')
         .eq('id', userId)
         .single();
 
