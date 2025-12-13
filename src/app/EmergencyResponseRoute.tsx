@@ -12,7 +12,6 @@ import { useIncidentData } from "../providers/IncidentProvider";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { usePWAInstallPrompt } from "./hooks/usePWAInstallPrompt";
 import { useLiveQuery } from "dexie-react-hooks";
-import { storage } from "./utils/storage";
 import { db, type IncidentReport } from "../db/db";
 import { useAuth } from "../providers/AuthProvider";
 
