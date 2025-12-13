@@ -46,33 +46,6 @@ export const storage = {
     localStorage.removeItem(STORAGE_KEYS.USER);
   },
   
-  // Reports
-  getReports: (): IncidentReport[] => {
-    const reports = localStorage.getItem(STORAGE_KEYS.REPORTS);
-    return reports ? JSON.parse(reports) : [];
-  },
-  
-  saveReport: (report: IncidentReport) => {
-    const reports = storage.getReports();
-    reports.push(report);
-    localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
-  },
-  
-  updateReport: (id: string, updates: Partial<IncidentReport>) => {
-    const reports = storage.getReports();
-    const index = reports.findIndex(r => r.id === id);
-    if (index !== -1) {
-      reports[index] = { ...reports[index], ...updates };
-      localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(reports));
-    }
-  },
-  
-  deleteReport: (id: string) => {
-    const reports = storage.getReports();
-    const filtered = reports.filter(r => r.id !== id);
-    localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(filtered));
-  },
-  
   clearAllData: () => {
     localStorage.clear();
   },

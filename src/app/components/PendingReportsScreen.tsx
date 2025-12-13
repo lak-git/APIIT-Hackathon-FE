@@ -3,7 +3,7 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { ConnectivityBanner } from './ConnectivityBanner';
-import type { IncidentReport } from '../utils/storage';
+import type { IncidentReport } from '../../db/db';
 
 interface PendingReportsScreenProps {
   isOnline: boolean;

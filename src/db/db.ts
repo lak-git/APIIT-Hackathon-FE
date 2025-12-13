@@ -1,23 +1,32 @@
 // db.ts
-import { Dexie, type EntityTable } from "dexie"
+import { Dexie, type EntityTable } from "dexie";
 
-interface Friend {
-  id: number
-  name: string
-  age: number
+interface IncidentReport {
+  id: string;
+  type: 'Flood' | 'Landslide' | 'Road Block' | 'Power Line Down';
+  severity: 1 | 2 | 3 | 4 | 5;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+  timestamp: string;
+  photo?: string;
+  status: 'local' | 'pending' | 'syncing' | 'synced' | 'failed';
+  createdAt: string;
 }
 
-const db = new Dexie("FriendsDatabase") as Dexie & {
-  friends: EntityTable<
-    Friend,
-    "id" // primary key "id" (for the typings only)
-  >
+class FieldResponderDB extends Dexie {
+  reports!: EntityTable<IncidentReport, "id">;
+
+  constructor() {
+    super("FieldResponderDB");
+    this.version(1).stores({
+      reports: "id, type, severity, status, timestamp, createdAt"
+    });
+  }
 }
 
-// Schema declaration:
-db.version(1).stores({
-  friends: "++id, name, age", // primary key "id" (for the runtime!)
-})
+const db = new FieldResponderDB();
 
-export type { Friend }
-export { db }
+export type { IncidentReport };
+export { db };

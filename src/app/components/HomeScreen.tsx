@@ -1,4 +1,4 @@
-import { FileText, Plus } from 'lucide-react';
+import { FileText, Plus, LogOut } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
@@ -9,22 +9,29 @@ interface HomeScreenProps {
   pendingCount: number;
   onCreateIncident: () => void;
   onViewReports: () => void;
+  onLogout: () => void;
 }
 
 export function HomeScreen({ 
   isOnline, 
   pendingCount, 
   onCreateIncident, 
-  onViewReports 
+  onViewReports,
+  onLogout
 }: HomeScreenProps) {
   return (
     <div className="min-h-screen flex flex-col">
       <ConnectivityBanner isOnline={isOnline} />
       
       <div className="flex-1 p-6 space-y-6">
-        <div>
-          <h1 className="mb-2">Field Responder</h1>
-          <p className="text-muted-foreground m-0">Emergency Response Dashboard</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="mb-2">Field Responder</h1>
+            <p className="text-muted-foreground m-0">Emergency Response Dashboard</p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onLogout}>
+            <LogOut className="w-5 h-5" />
+          </Button>
         </div>
 
         <div className="space-y-4">
