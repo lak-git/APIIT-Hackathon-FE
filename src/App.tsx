@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { Toaster } from "sonner";
 
 import { IncidentProvider } from "./providers/IncidentProvider";
@@ -7,6 +7,11 @@ const baseLinkClasses =
 	"px-3 py-2 rounded-md text-sm font-medium transition-colors";
 
 export default function App() {
+    const location = useLocation();
+    const hideNavigation =
+        location.pathname.startsWith("/emergency") ||
+        location.pathname.startsWith("/command");
+
 	return (
 		<IncidentProvider>
 			<div className="min-h-screen bg-[#FAF3E8] text-[#4A1A1A]">
@@ -20,24 +25,26 @@ export default function App() {
 								Response Control Center
 							</h1>
 						</div>
-						<nav className="flex gap-2">
-							<NavLink
-								to="/emergency"
-								className={({ isActive }) =>
-									`${baseLinkClasses} ${isActive ? "bg-[#800020] text-white" : "text-[#800020] hover:bg-[#F0E6D8]"}`
-								}
-							>
-								Emergency Response System
-							</NavLink>
-							<NavLink
-								to="/command"
-								className={({ isActive }) =>
-									`${baseLinkClasses} ${isActive ? "bg-[#800020] text-white" : "text-[#800020] hover:bg-[#F0E6D8]"}`
-								}
-							>
-								Command Dashboard
-							</NavLink>
-						</nav>
+						{!hideNavigation && (
+							<nav className="flex gap-2">
+								<NavLink
+									to="/emergency"
+									className={({ isActive }) =>
+										`${baseLinkClasses} ${isActive ? "bg-[#800020] text-white" : "text-[#800020] hover:bg-[#F0E6D8]"}`
+									}
+								>
+									Emergency Response System
+								</NavLink>
+								<NavLink
+									to="/command"
+									className={({ isActive }) =>
+										`${baseLinkClasses} ${isActive ? "bg-[#800020] text-white" : "text-[#800020] hover:bg-[#F0E6D8]"}`
+									}
+								>
+									Command Dashboard
+								</NavLink>
+							</nav>
+						)}
 					</div>
 				</header>
 
