@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 
 import App from "./App";
-import EmergencyResponseRoute from "./app/App";
+import EmergencyResponseRoute from "./app/EmergencyResponseRoute";
 import CommandDashboardRoute from "./routes/CommandDashboardRoute";
 import "./styles/index.css";
 
