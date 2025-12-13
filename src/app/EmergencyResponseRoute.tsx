@@ -10,6 +10,7 @@ import CommandDashboardRoute from "../routes/CommandDashboardRoute";
 
 import { useIncidentData } from "../providers/IncidentProvider";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
+import { usePWAInstallPrompt } from "./hooks/usePWAInstallPrompt";
 import { useLiveQuery } from "dexie-react-hooks";
 import { storage } from "./utils/storage";
 import { db, type IncidentReport } from "../db/db";
@@ -59,10 +60,13 @@ function toastMaroon(
 export default function EmergencyResponseRoute() {
   const { isAuthenticated, isAdmin, login, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
+  const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
 
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
   const isOnline = useOnlineStatus();
   const { registerFieldIncident } = useIncidentData();
+  const { canInstall: canInstallPWA, promptInstall, dismissPrompt } = usePWAInstallPrompt();
+  const shouldShowInstallBanner = canInstallPWA && !installBannerDismissed;
 
   // Icons pre-built (maroon)
   const icons = useMemo(
@@ -129,6 +133,26 @@ export default function EmergencyResponseRoute() {
 
     // State update handles via useEffect
     toastMaroon("Logged out", { icon: icons.logout });
+  };
+
+  const handleInstallPWA = async () => {
+    const choice = await promptInstall();
+
+    if (!choice) {
+      toastMaroon("Install prompt unavailable", { icon: icons.info });
+      return;
+    }
+
+    if (choice.outcome === "accepted") {
+      toastMaroon("Installing Nodus...", { icon: icons.success });
+    } else {
+      toastMaroon("Install dismissed", { icon: icons.info });
+    }
+  };
+
+  const handleDismissInstallBanner = () => {
+    dismissPrompt();
+    setInstallBannerDismissed(true);
   };
 
   const handleSaveIncident = async (
@@ -220,6 +244,61 @@ export default function EmergencyResponseRoute() {
 
   return (
     <>
+      {shouldShowInstallBanner && (
+        <div
+          style={{
+            background: WHITE,
+            border: `1px solid ${BORDER}`,
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 16,
+            display: "flex",
+            gap: 16,
+            alignItems: "center",
+            justifyContent: "space-between",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.08)",
+          }}
+        >
+          <div>
+            <p style={{ fontWeight: 600, color: MAROON }}>Install Nodus for offline access</p>
+            <p style={{ margin: 0, color: "#4A4A4A" }}>
+              Add the dashboard to your device for faster incident reporting.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: 12 }}>
+            <button
+              onClick={handleInstallPWA}
+              style={{
+                background: MAROON,
+                color: WHITE,
+                border: "none",
+                borderRadius: 9999,
+                padding: "8px 20px",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              Install
+            </button>
+            <button
+              onClick={handleDismissInstallBanner}
+              style={{
+                background: "transparent",
+                color: MAROON,
+                border: `1px solid ${BORDER}`,
+                borderRadius: 9999,
+                padding: "8px 20px",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              Later
+            </button>
+          </div>
+        </div>
+      )}
+
       {currentScreen === "home" && (
         <HomeScreen
           isOnline={isOnline}
