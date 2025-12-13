@@ -5,6 +5,8 @@ import { FilterControls } from "../app/components/FilterControls";
 import { MapView } from "../app/components/MapView";
 import { IncidentTable } from "../app/components/IncidentTable";
 import { IncidentDetailPanel } from "../app/components/IncidentDetailPanel";
+import { AccountApprovals } from "../app/components/accountApprovals";
+
 import type { Incident } from "../types/incident";
 import { useIncidentData } from "../providers/IncidentProvider";
 
@@ -24,8 +26,10 @@ export default function CommandDashboardRoute() {
   const { incidents } = useIncidentData();
   const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
 
-  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
-  const [isPanelOpen, setIsPanelOpen] = useState(false); // ✅ NEW
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(
+    null,
+  );
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
 
   const filteredIncidents = useMemo(() => {
     return incidents.filter((incident) => {
@@ -36,57 +40,50 @@ export default function CommandDashboardRoute() {
 
       const matchesDate = filters.dateRange
         ? incident.timestamp >= filters.dateRange.start &&
-        incident.timestamp <= filters.dateRange.end
+          incident.timestamp <= filters.dateRange.end
         : true;
 
       return matchesType && matchesSeverity && matchesDate;
     });
   }, [incidents, filters]);
 
-  // ✅ Keep selection valid when filters change, but DO NOT auto-open panel
   useEffect(() => {
-    // If selected incident disappears due to filters, pick first (or null)
     if (
       selectedIncident &&
       !filteredIncidents.some((i) => i.id === selectedIncident.id)
     ) {
       const next = filteredIncidents[0] ?? null;
       setSelectedIncident(next);
-
-      // If nothing left, also close panel
       if (!next) setIsPanelOpen(false);
     }
 
-    // If nothing selected yet, set first for highlight on map/table (panel stays closed)
     if (!selectedIncident && filteredIncidents.length > 0) {
       setSelectedIncident(filteredIncidents[0]);
     }
   }, [filteredIncidents, selectedIncident]);
 
-  // ✅ One handler used by BOTH Map and Table
   const handleIncidentClick = (incident: Incident) => {
     setSelectedIncident(incident);
     setIsPanelOpen(true);
   };
 
   const handleClosePanel = () => {
-    setIsPanelOpen(false); // ✅ now X truly closes
+    setIsPanelOpen(false);
   };
 
   return (
     <section className="space-y-6 relative">
-
-
       <SummaryBadges incidents={incidents} />
 
       <FilterControls filters={filters} onFilterChange={setFilters} />
 
+      {/* ✅ INCIDENT AREA CARD */}
       <div className="bg-white/90 rounded-lg shadow-md border border-[#E5D5C3] p-4 space-y-4">
         <div className="h-[380px] rounded-lg overflow-hidden border border-[#E5D5C3]">
           <MapView
             incidents={filteredIncidents}
             selectedIncident={selectedIncident}
-            onIncidentClick={handleIncidentClick} // ✅ UPDATED
+            onIncidentClick={handleIncidentClick}
           />
         </div>
 
@@ -94,15 +91,20 @@ export default function CommandDashboardRoute() {
           <IncidentTable
             incidents={filteredIncidents}
             selectedIncident={selectedIncident}
-            onIncidentClick={handleIncidentClick} // ✅ UPDATED
+            onIncidentClick={handleIncidentClick}
           />
         </div>
       </div>
 
+      {/* ✅ SEPARATE ACCOUNT APPROVALS AREA */}
+      <div className="bg-white/90 rounded-lg shadow-md border border-[#E5D5C3] p-4">
+        <AccountApprovals />
+      </div>
+
       <IncidentDetailPanel
         incident={selectedIncident}
-        isOpen={isPanelOpen} // ✅ UPDATED
-        onClose={handleClosePanel} // ✅ UPDATED
+        isOpen={isPanelOpen}
+        onClose={handleClosePanel}
       />
     </section>
   );
