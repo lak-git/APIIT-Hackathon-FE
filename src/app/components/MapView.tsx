@@ -96,6 +96,12 @@ export function MapView({ incidents, selectedIncident, onIncidentClick }: MapVie
                   attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
                 />
               </LayersControl.Overlay>
+              <LayersControl.Overlay name="Wind Speed">
+                <TileLayer
+                  url={`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${API_KEY}`}
+                  attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                />
+              </LayersControl.Overlay>
             </>
           )}
         </LayersControl>
