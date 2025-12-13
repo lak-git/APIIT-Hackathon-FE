@@ -29,7 +29,9 @@ export default function CommandDashboardRoute() {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(
     null,
   );
+
   const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [activeView, setActiveView] = useState<"home" | "accounts">("home");
 
   const filteredIncidents = useMemo(() => {
     return incidents.filter((incident) => {
@@ -40,7 +42,7 @@ export default function CommandDashboardRoute() {
 
       const matchesDate = filters.dateRange
         ? incident.timestamp >= filters.dateRange.start &&
-          incident.timestamp <= filters.dateRange.end
+        incident.timestamp <= filters.dateRange.end
         : true;
 
       return matchesType && matchesSeverity && matchesDate;
@@ -73,39 +75,44 @@ export default function CommandDashboardRoute() {
 
   return (
     <section className="space-y-6 relative">
-      <SummaryBadges incidents={incidents} />
-
-      <FilterControls filters={filters} onFilterChange={setFilters} />
-
-      {/* ✅ INCIDENT AREA CARD */}
-      <div className="bg-white/90 rounded-lg shadow-md border border-[#E5D5C3] p-4 space-y-4">
-        <div className="h-[380px] rounded-lg overflow-hidden border border-[#E5D5C3]">
-          <MapView
-            incidents={filteredIncidents}
-            selectedIncident={selectedIncident}
-            onIncidentClick={handleIncidentClick}
-          />
-        </div>
-
-        <div className="h-[500px] rounded-lg border border-[#E5D5C3] bg-white">
-          <IncidentTable
-            incidents={filteredIncidents}
-            selectedIncident={selectedIncident}
-            onIncidentClick={handleIncidentClick}
-          />
-        </div>
-      </div>
-
-      {/* ✅ SEPARATE ACCOUNT APPROVALS AREA */}
-      <div className="bg-white/90 rounded-lg shadow-md border border-[#E5D5C3] p-4">
-        <AccountApprovals />
-      </div>
-
-      <IncidentDetailPanel
-        incident={selectedIncident}
-        isOpen={isPanelOpen}
-        onClose={handleClosePanel}
+      <SummaryBadges
+        incidents={incidents}
+        activeTab={activeView}
+        onNavigate={setActiveView}
       />
+
+      {activeView === "home" ? (
+        <>
+          <FilterControls filters={filters} onFilterChange={setFilters} />
+
+          {/* ✅ INCIDENT AREA CARD */}
+          <div className="bg-white/90 rounded-lg shadow-md border border-[#E5D5C3] p-4 space-y-4">
+            <div className="h-[380px] rounded-lg overflow-hidden border border-[#E5D5C3]">
+              <MapView
+                incidents={filteredIncidents}
+                selectedIncident={selectedIncident}
+                onIncidentClick={handleIncidentClick}
+              />
+            </div>
+
+            <div className="h-[500px] rounded-lg border border-[#E5D5C3] bg-white">
+              <IncidentTable
+                incidents={filteredIncidents}
+                selectedIncident={selectedIncident}
+                onIncidentClick={handleIncidentClick}
+              />
+            </div>
+          </div>
+
+          <IncidentDetailPanel
+            incident={selectedIncident}
+            isOpen={isPanelOpen}
+            onClose={handleClosePanel}
+          />
+        </>
+      ) : (
+        <AccountApprovals />
+      )}
     </section>
   );
 }

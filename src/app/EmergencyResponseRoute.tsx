@@ -13,7 +13,7 @@ import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { useLiveQuery } from "dexie-react-hooks";
 import { storage } from "./utils/storage";
 import { db, type IncidentReport } from "../db/db";
-import { getCurrentUser, getUserProfile, logout } from "./services/authService";
+import { useAuth } from "../providers/AuthProvider";
 
 import {
   CheckCircle2,
@@ -57,8 +57,8 @@ function toastMaroon(
 }
 
 export default function EmergencyResponseRoute() {
+  const { isAuthenticated, isAdmin, login, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
   const isOnline = useOnlineStatus();
@@ -81,13 +81,15 @@ export default function EmergencyResponseRoute() {
   );
 
   useEffect(() => {
-    // Check if user is already authenticated
-    const token = storage.getAuthToken();
-    if (token) {
-      setIsAuthenticated(true);
-      setCurrentScreen("home");
+    if (isAuthenticated) {
+      // Only redirect if we are currently on the login screen
+      if (currentScreen === "login") {
+        setCurrentScreen(isAdmin ? "dashboard" : "home");
+      }
+    } else {
+      setCurrentScreen("login");
     }
-  }, []);
+  }, [isAuthenticated, isAdmin, currentScreen]);
 
   // NOTE: Reports are now automatically synced to IncidentProvider via its internal useLiveQuery.
   // We don't need to manually register them here anymore.
@@ -110,37 +112,22 @@ export default function EmergencyResponseRoute() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline]);
 
-  const handleLogin = async (email: string, _password: string) => {
-    const user = await getCurrentUser();
-    if (!user) return;
-
-    storage.setAuthToken("supabase-session");
-    storage.setUser({ email, name: email.split("@")[0] });
-
-    setIsAuthenticated(true);
-
-    // Fetch profile and direct
-    const profile = await getUserProfile(user.id);
-    if (profile?.is_admin) {
-      setCurrentScreen("dashboard");
-    } else {
-      setCurrentScreen("home");
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      await login(email, password);
+      toastMaroon("Logged in successfully", { icon: icons.login });
+    } catch (e) {
+      console.error(e);
+      toastMaroon("Login failed", { icon: icons.error });
     }
-
-    toastMaroon("Logged in successfully", { icon: icons.login });
   };
 
   const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error("Logout failed", error);
-    }
+    await logout();
     storage.clearAuthToken();
     storage.clearUser();
-    setIsAuthenticated(false);
-    setCurrentScreen("login");
 
+    // State update handles via useEffect
     toastMaroon("Logged out", { icon: icons.logout });
   };
 

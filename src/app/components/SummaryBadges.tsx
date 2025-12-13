@@ -12,14 +12,22 @@ import {
 interface SummaryBadgesProps {
   incidents: Incident[];
   onLogout?: () => void;
+
+  // ✅ optional navigation handlers (won't break existing usage)
+  activeTab?: "home" | "accounts";
+  onNavigate?: (tab: "home" | "accounts") => void;
 }
 
-export function SummaryBadges({ incidents, onLogout }: SummaryBadgesProps) {
+export function SummaryBadges({
+  incidents,
+  onLogout,
+  activeTab = "home",
+  onNavigate,
+}: SummaryBadgesProps) {
   const getCountByType = (type: IncidentType) =>
     incidents.filter((i) => i.type === type).length;
 
-  const getCriticalCount = () =>
-    incidents.filter((i) => i.severity >= 4).length;
+  const getCriticalCount = () => incidents.filter((i) => i.severity >= 4).length;
 
   const getIcon = (type: IncidentType) => {
     switch (type) {
@@ -47,10 +55,10 @@ export function SummaryBadges({ incidents, onLogout }: SummaryBadgesProps) {
     <div className="space-y-4">
       {/* Top Banner */}
       <div className="bg-white rounded-lg shadow-md px-6 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           {/* Left: Logo + text */}
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
               <Shield className="w-6 h-6 text-primary-foreground" />
             </div>
 
@@ -62,6 +70,50 @@ export function SummaryBadges({ incidents, onLogout }: SummaryBadgesProps) {
             </div>
           </div>
 
+          {/* Middle: Navigation (cleaner segmented control) */}
+          <div className="flex-1 flex items-center justify-center">
+            <nav
+              aria-label="Primary"
+              className="inline-flex items-center rounded-xl border border-[#E5D5C3] bg-white shadow-sm overflow-hidden"
+            >
+              <button
+                type="button"
+                onClick={() => onNavigate?.("home")}
+                className={[
+                  "inline-flex items-center gap-2",
+                  "px-4 py-2.5 text-sm font-semibold",
+                  "transition-colors",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#800020]/30 focus-visible:ring-offset-2",
+                  activeTab === "home"
+                    ? "bg-[#800020] text-white"
+                    : "text-[#4A1A1A] hover:bg-[#FAF3E8]",
+                ].join(" ")}
+                aria-current={activeTab === "home" ? "page" : undefined}
+              >
+                Home
+              </button>
+
+              <span className="h-8 w-px bg-[#E5D5C3]" />
+
+              <button
+                type="button"
+                onClick={() => onNavigate?.("accounts")}
+                className={[
+                  "inline-flex items-center gap-2",
+                  "px-4 py-2.5 text-sm font-semibold",
+                  "transition-colors",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#800020]/30 focus-visible:ring-offset-2",
+                  activeTab === "accounts"
+                    ? "bg-[#800020] text-white"
+                    : "text-[#4A1A1A] hover:bg-[#FAF3E8]",
+                ].join(" ")}
+                aria-current={activeTab === "accounts" ? "page" : undefined}
+              >
+                Accounts
+              </button>
+            </nav>
+          </div>
+
           {/* Right: Logout (always visible) */}
           <button
             onClick={() => onLogout?.()}
@@ -71,9 +123,10 @@ export function SummaryBadges({ incidents, onLogout }: SummaryBadgesProps) {
               "flex items-center gap-2",
               "text-[#800020] font-semibold text-sm",
               "px-4 py-2 rounded-lg",
-              "border border-[#E5D5C3] bg-white",
+              "border border-[#E5D5C3] bg-white", 
               "hover:bg-[#FAF3E8] transition-colors",
-              !onLogout ? "opacity-100 cursor-pointer hover:bg-transparent" : "",
+              "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#800020]/30 focus-visible:ring-offset-2",
+              !onLogout ? "opacity-60 cursor-not-allowed" : "",
             ].join(" ")}
           >
             <LogOut className="w-4 h-4" />
