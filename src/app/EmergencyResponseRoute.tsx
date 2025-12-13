@@ -59,10 +59,10 @@ function toastBlack(
 
 // ✅ Loading toast (syncing)
 export default function EmergencyResponseRoute() {
-  const { registerFieldIncident, incidents: activeIncidents } = useIncidentData();
-  const nearbyIncidents = useNearbyIncidents(activeIncidents);
-  const [currentScreen, setCurrentScreen] = useState<Screen>("login");
-  const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
+    const { registerFieldIncident, incidents: activeIncidents } = useIncidentData();
+    const nearbyIncidents = useNearbyIncidents(activeIncidents);
+    const [currentScreen, setCurrentScreen] = useState<Screen>("login");
+    const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
 
     const { isAuthenticated, isAdmin, isLoading, user, logout: authLogout, login: authLogin } = useAuth();
     const navigate = useNavigate();
