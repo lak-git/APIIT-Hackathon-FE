@@ -4,7 +4,9 @@ import { toast } from "sonner";
 import { LoginScreen } from "./components/LoginScreen";
 import { HomeScreen } from "./components/HomeScreen";
 import { CreateIncidentScreen } from "./components/CreateIncidentScreen";
+
 import { PendingReportsScreen } from "./components/PendingReportsScreen";
+import CommandDashboardRoute from "../routes/CommandDashboardRoute";
 
 import { useIncidentData } from "../providers/IncidentProvider";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
@@ -25,7 +27,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-type Screen = "login" | "home" | "create" | "reports";
+type Screen = "login" | "home" | "create" | "reports" | "dashboard";
 
 const MAROON = "#800020";
 const WHITE = "#FFFFFF";
@@ -93,7 +95,7 @@ export default function EmergencyResponseRoute() {
         });
 
         if (profile?.isAdmin) {
-          setCurrentScreen("reports");
+          setCurrentScreen("dashboard");
         } else {
           setCurrentScreen("home");
         }
@@ -139,7 +141,7 @@ export default function EmergencyResponseRoute() {
     // Fetch profile and direct
     const profile = await getUserProfile(user.id);
     if (profile?.isAdmin) {
-      setCurrentScreen("reports");
+      setCurrentScreen("dashboard");
     } else {
       setCurrentScreen("home");
     }
@@ -277,6 +279,8 @@ export default function EmergencyResponseRoute() {
           onRetry={handleRetrySync}
         />
       )}
+
+      {currentScreen === "dashboard" && <CommandDashboardRoute />}
     </>
   );
 }
