@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -8,12 +8,14 @@ import { CreateIncidentScreen } from "./components/CreateIncidentScreen";
 
 import { PendingReportsScreen } from "./components/PendingReportsScreen";
 
+import { useAuth } from "../providers/AuthProvider";
 import { useIncidentData } from "../providers/IncidentProvider";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { usePWAInstallPrompt } from "./hooks/usePWAInstallPrompt";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type IncidentReport } from "../db/db";
-import { getCurrentUser, getUserProfile, logout } from "./services/authService";
+import { storage } from "./utils/storage";
+import { getCurrentUser, getUserProfile } from "./services/authService";
 
 import {
   CheckCircle2,
@@ -62,30 +64,12 @@ function toastBlack(
 }
 
 // ✅ Loading toast (syncing)
-function toastBlackLoading(
-  message: string,
-  opts?: {
-    icon?: React.ReactNode;
-    description?: string;
-    id?: string | number;
-  },
-) {
-  return toast.loading(message, {
-    id: opts?.id,
-    description: opts?.description,
-    icon: opts?.icon,
-    position: "bottom-center",
-    style: {
-      background: WHITE,
-      color: BLACK,
-      border: `1px solid ${BORDER}`,
-    },
-  });
-}
-
 export default function EmergencyResponseRoute() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
   const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
+
+  const { isAuthenticated, isAdmin, logout: authLogout } = useAuth();
+  const navigate = useNavigate();
 
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
   const isOnline = useOnlineStatus();
@@ -112,14 +96,15 @@ export default function EmergencyResponseRoute() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      // Only redirect if we are currently on the login screen
-      if (currentScreen === "login") {
-        setCurrentScreen(isAdmin ? "dashboard" : "home");
+      if (isAdmin) {
+        navigate("/command", { replace: true });
+      } else {
+        setCurrentScreen((prev) => (prev === "login" ? "home" : prev));
       }
     } else {
       setCurrentScreen("login");
     }
-  }, [isAuthenticated, isAdmin, currentScreen]);
+  }, [isAuthenticated, isAdmin, navigate]);
 
   // NOTE: Reports are now automatically synced to IncidentProvider via its internal useLiveQuery.
   // We don't need to manually register them here anymore.
@@ -146,11 +131,9 @@ export default function EmergencyResponseRoute() {
     storage.setAuthToken("supabase-session");
     storage.setUser({ email, name: email.split("@")[0] });
 
-    setIsAuthenticated(true);
-
     const profile = await getUserProfile(user.id);
     if (profile?.is_admin) {
-      setCurrentScreen("dashboard");
+      navigate("/command", { replace: true });
     } else {
       setCurrentScreen("home");
     }
@@ -159,12 +142,8 @@ export default function EmergencyResponseRoute() {
   };
 
   const handleLogout = async () => {
-    await logout();
-    storage.clearAuthToken();
-    storage.clearUser();
-
-    // State update handles via useEffect
-    toastMaroon("Logged out", { icon: icons.logout });
+    await authLogout();
+    toastBlack("Logged out", { icon: icons.logout });
   };
 
   const handleInstallPWA = async () => {
@@ -202,56 +181,8 @@ export default function EmergencyResponseRoute() {
     setCurrentScreen("home");
 
     if (isOnline) {
-      sync();
+      syncReports();
     }
-  };
-
-  // ✅ Start/Update/Finish bottom sync popup
-  const beginSyncPopup = (count: number) => {
-    if (count <= 0) return;
-
-    syncPendingCountRef.current += count;
-
-    if (syncToastIdRef.current == null) {
-      syncToastIdRef.current = toastBlackLoading("Syncing reports…", {
-        icon: icons.syncing,
-        description: "Uploading your latest incident data.",
-      });
-    } else {
-      toastBlackLoading("Syncing reports…", {
-        id: syncToastIdRef.current,
-        icon: icons.syncing,
-        description: `Uploading… ${syncPendingCountRef.current} remaining.`,
-      });
-    }
-  };
-
-  const finishOneSyncPopup = () => {
-    syncPendingCountRef.current = Math.max(0, syncPendingCountRef.current - 1);
-
-    if (syncToastIdRef.current == null) return;
-
-    if (syncPendingCountRef.current > 0) {
-      toastBlackLoading("Syncing reports…", {
-        id: syncToastIdRef.current,
-        icon: icons.syncing,
-        description: `Uploading… ${syncPendingCountRef.current} remaining.`,
-      });
-      return;
-    }
-
-    toastBlack("Sync completed", {
-      id: syncToastIdRef.current,
-      icon: icons.success,
-      description: "All pending reports are up to date.",
-    });
-
-    const toastId = syncToastIdRef.current;
-    setTimeout(() => {
-      toast.dismiss(toastId);
-      syncToastIdRef.current = null;
-      syncPendingCountRef.current = 0;
-    }, 1400);
   };
 
   const syncSingleReport = async (reportId: string) => {
@@ -272,11 +203,11 @@ export default function EmergencyResponseRoute() {
         registerFieldIncident(syncedReport, storage.getUser()?.name);
 
         // ✅ Report saved successfully / synced successfully
-        toastMaroon("Report synced successfully", { icon: icons.success });
+        toastBlack("Report synced successfully", { icon: icons.success });
       } else {
         await db.reports.update(reportId, { status: "failed" });
 
-        toastMaroon("Sync failed - will retry later", { icon: icons.error });
+        toastBlack("Sync failed - will retry later", { icon: icons.error });
       }
     }, 2000);
   };
@@ -303,13 +234,13 @@ export default function EmergencyResponseRoute() {
     }
   };
 
-  const handleRetrySync = async () => {
+  const handleRetrySync = async (reportId: string) => {
     if (!isOnline) {
       toastBlack("Cannot retry while offline", { icon: icons.offline });
       return;
     }
 
-    toastMaroon("Retrying sync...", { icon: icons.retry });
+    toastBlack("Retrying sync...", { icon: icons.retry });
     syncSingleReport(reportId);
   };
 
@@ -400,7 +331,7 @@ export default function EmergencyResponseRoute() {
           reports={reports}
           onBack={() => setCurrentScreen("home")}
           onSync={syncReports}
-          onRetry={() => handleRetrySync()}
+          onRetry={handleRetrySync}
         />
       )}
     </>
