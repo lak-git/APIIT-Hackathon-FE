@@ -99,20 +99,34 @@ export const useSyncManager = () => {
 
                 // 2. Database Insert
                 // Mapping IncidentReport fields to Supabase incidents table
+                let payloadUserId = incident.userId;
+
+                // 🚨 Self-healing: If ID is missing or anonymous, try to get current session user
+                if (!payloadUserId || payloadUserId === "anonymous") {
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        console.log(`[SyncManager] Repaired missing userId for ${incident.id} -> ${user.id}`);
+                        payloadUserId = user.id;
+                        // Optional: Repair local DB too
+                        await db.reports.update(incident.id, { userId: user.id });
+                    }
+                }
+
                 const payload = {
                     incident_type: incident.type,
                     severity: incident.severity,
                     latitude: incident.location.latitude,
                     longitude: incident.location.longitude,
-                    // description: undefined, // 'description' is not present in IncidentReport
+                    // description: undefined, 
                     local_id: incident.id, // Using string UUID from local DB
                     image_url: finalImageUrl,
-                    // status: 'active', // Optional: set status for Supabase if needed
                     created_at: incident.createdAt,
-                    occurred_at: incident.timestamp // Map local timestamp to occurred_at
+                    occurred_at: incident.timestamp,
+                    user_id: payloadUserId
                 };
 
                 console.log(`[SyncManager] Inserting payload to Supabase:`, payload);
+                console.log(`[SyncManager] Payload user_id:`, payload.user_id);
 
                 const { error: insertError } = await supabase
                     .from('incidents')

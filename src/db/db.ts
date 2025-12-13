@@ -14,6 +14,7 @@ interface IncidentReport {
   photo?: string;
   status: 'local' | 'pending' | 'syncing' | 'synced' | 'failed';
   createdAt: string;
+  userId: string;
 }
 
 class FieldResponderDB extends Dexie {
