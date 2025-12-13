@@ -13,7 +13,7 @@ import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { useLiveQuery } from "dexie-react-hooks";
 import { storage } from "./utils/storage";
 import { db, type IncidentReport } from "../db/db";
-import { useAuth } from "../providers/AuthProvider";
+import { getCurrentUser, getUserProfile, logout } from "./services/authService";
 
 import {
   CheckCircle2,
@@ -82,8 +82,8 @@ function toastMaroonLoading(
 }
 
 export default function EmergencyResponseRoute() {
-  const { isAuthenticated, isAdmin, login, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
   const isOnline = useOnlineStatus();
@@ -111,18 +111,13 @@ export default function EmergencyResponseRoute() {
   );
 
   useEffect(() => {
-    if (isAuthenticated) {
-      // Only redirect if we are currently on the login screen
-      if (currentScreen === "login") {
-        setCurrentScreen(isAdmin ? "dashboard" : "home");
-      }
-    } else {
-      setCurrentScreen("login");
+    // Check if user is already authenticated
+    const token = storage.getAuthToken();
+    if (token) {
+      setIsAuthenticated(true);
+      setCurrentScreen("home");
     }
-  }, [isAuthenticated, isAdmin, currentScreen]);
-
-  // NOTE: Reports are now automatically synced to IncidentProvider via its internal useLiveQuery.
-  // We don't need to manually register them here anymore.
+  }, []);
 
   useEffect(() => {
     // Auto-sync when coming online
@@ -135,29 +130,41 @@ export default function EmergencyResponseRoute() {
         toastMaroon("Online - syncing reports...", { icon: icons.online });
         syncReports();
       }
-    } else {
-      // Optional: show offline message (remove if you don't want it)
-      // toastMaroon("Offline mode enabled", { icon: icons.offline });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOnline]);
 
-  const handleLogin = async (email: string, password: string) => {
-    try {
-      await login(email, password);
-      toastMaroon("Logged in successfully", { icon: icons.login });
-    } catch (e) {
-      console.error(e);
-      toastMaroon("Login failed", { icon: icons.error });
+  const handleLogin = async (email: string, _password: string) => {
+    const user = await getCurrentUser();
+    if (!user) return;
+
+    storage.setAuthToken("supabase-session");
+    storage.setUser({ email, name: email.split("@")[0] });
+
+    setIsAuthenticated(true);
+
+    // Fetch profile and direct
+    const profile = await getUserProfile(user.id);
+    if (profile?.is_admin) {
+      setCurrentScreen("dashboard");
+    } else {
+      setCurrentScreen("home");
     }
+
+    toastMaroon("Logged in successfully", { icon: icons.login });
   };
 
   const handleLogout = async () => {
-    await logout();
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
     storage.clearAuthToken();
     storage.clearUser();
+    setIsAuthenticated(false);
+    setCurrentScreen("login");
 
-    // State update handles via useEffect
     toastMaroon("Logged out", { icon: icons.logout });
   };
 
@@ -172,13 +179,9 @@ export default function EmergencyResponseRoute() {
     };
 
     await db.reports.add(newReport);
-
-    // ✅ Report saved locally (white bg, maroon text + maroon icon)
     toastMaroon("Report saved locally", { icon: icons.saved });
-
     setCurrentScreen("home");
 
-    // Attempt to sync if online
     if (isOnline) {
       setTimeout(() => syncSingleReport(newReport.id), 1000);
     }
@@ -225,41 +228,34 @@ export default function EmergencyResponseRoute() {
       description: "All pending reports are up to date.",
     });
 
-    // Clear after a moment so the next sync starts fresh
+    // ✅ Auto-dismiss after a short delay
+    const toastId = syncToastIdRef.current;
     setTimeout(() => {
+      toast.dismiss(toastId);
       syncToastIdRef.current = null;
       syncPendingCountRef.current = 0;
-    }, 1200);
+    }, 1400);
   };
 
   const syncSingleReport = async (reportId: string) => {
     const report = reports.find((r) => r.id === reportId);
     if (!report || !isOnline) return;
 
-    // ✅ Show syncing popup (1 item)
     beginSyncPopup(1);
-
-    // Update status to syncing
     await db.reports.update(reportId, { status: "syncing" });
 
-    // Simulate API call
     setTimeout(async () => {
-      const success = Math.random() > 0.1; // 90% success rate
+      const success = Math.random() > 0.1;
 
       if (success) {
         const syncedReport: IncidentReport = { ...report, status: "synced" };
-
-        // React UI updates automatically via useLiveQuery
         registerFieldIncident(syncedReport, storage.getUser()?.name);
-
-        // ✅ Report saved successfully / synced successfully
         toastMaroon("Report synced successfully", { icon: icons.success });
       } else {
         await db.reports.update(reportId, { status: "failed" });
         toastMaroon("Sync failed - will retry later", { icon: icons.error });
       }
 
-      // ✅ Mark one item done (success or fail)
       finishOneSyncPopup();
     }, 2000);
   };
@@ -279,19 +275,11 @@ export default function EmergencyResponseRoute() {
       return;
     }
 
-    // ✅ Show syncing popup (bulk count)
+    // ✅ One popup for the whole batch
     beginSyncPopup(unsyncedReports.length);
 
-    // Sync each report
+    // Per-item sync WITHOUT beginSyncPopup(1) (prevents double counting)
     for (const report of unsyncedReports) {
-      // IMPORTANT: syncSingleReport already calls beginSyncPopup(1),
-      // so we avoid double-counting by calling a version that DOESN'T add again.
-      // We'll directly perform the existing logic by calling syncSingleReport,
-      // but first undo the +1 it will add, then let it proceed.
-      // Simpler: call syncSingleReport but prevent double-add by not calling beginSyncPopup here per-item.
-      // We already added total above, so we should call a lightweight per-item sync.
-
-      // ---- per-item without beginSyncPopup ----
       const reportId = report.id;
 
       const current = reports.find((r) => r.id === reportId);
@@ -316,7 +304,6 @@ export default function EmergencyResponseRoute() {
 
         finishOneSyncPopup();
       }, 2000);
-      // ---- end per-item without beginSyncPopup ----
     }
   };
 

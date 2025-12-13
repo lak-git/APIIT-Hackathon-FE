@@ -130,7 +130,7 @@ export function CreateIncidentScreen({
   }, [location]);
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-white w-full">
       <ConnectivityBanner isOnline={isOnline} />
 
       <div className="flex-1 p-6 space-y-6">
