@@ -2,6 +2,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
+import { registerSW } from "virtual:pwa-register";
 
 import App from "./App";
 import EmergencyResponseRoute from "./app/EmergencyResponseRoute";
@@ -27,6 +28,9 @@ const router = createBrowserRouter([
     ],
   },
 ]);
+
+// Ensure the Vite PWA service worker takes control of every route load.
+registerSW({ immediate: true });
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -10,6 +10,7 @@ import { PendingReportsScreen } from "./components/PendingReportsScreen";
 
 import { useIncidentData } from "../providers/IncidentProvider";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
+import { usePWAInstallPrompt } from "./hooks/usePWAInstallPrompt";
 import { useLiveQuery } from "dexie-react-hooks";
 import { storage } from "./utils/storage";
 import { db, type IncidentReport } from "../db/db";
@@ -59,11 +60,14 @@ function toastMaroon(
 export default function EmergencyResponseRoute() {
   const { isAuthenticated, isAdmin, login, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
+  const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
   const navigate = useNavigate();
 
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
   const isOnline = useOnlineStatus();
-  const { registerFieldIncident } = useIncidentData();
+  const { sync } = useIncidentData();
+  const { canInstall: canInstallPWA, promptInstall, dismissPrompt } = usePWAInstallPrompt();
+  const shouldShowInstallBanner = canInstallPWA && !installBannerDismissed;
 
   // Icons pre-built (maroon)
   const icons = useMemo(
@@ -130,6 +134,26 @@ export default function EmergencyResponseRoute() {
     toastMaroon("Logged out", { icon: icons.logout });
   };
 
+  const handleInstallPWA = async () => {
+    const choice = await promptInstall();
+
+    if (!choice) {
+      toastMaroon("Install prompt unavailable", { icon: icons.info });
+      return;
+    }
+
+    if (choice.outcome === "accepted") {
+      toastMaroon("Installing Nodus...", { icon: icons.success });
+    } else {
+      toastMaroon("Install dismissed", { icon: icons.info });
+    }
+  };
+
+  const handleDismissInstallBanner = () => {
+    dismissPrompt();
+    setInstallBannerDismissed(true);
+  };
+
   const handleSaveIncident = async (
     reportData: Omit<IncidentReport, "id" | "createdAt" | "status">,
   ) => {
@@ -149,36 +173,10 @@ export default function EmergencyResponseRoute() {
 
     // Attempt to sync if online
     if (isOnline) {
-      setTimeout(() => syncSingleReport(newReport.id), 1000);
+      sync();
     }
   };
 
-  const syncSingleReport = async (reportId: string) => {
-    const report = reports.find((r) => r.id === reportId);
-    if (!report || !isOnline) return;
-
-    // Update status to syncing
-    await db.reports.update(reportId, { status: "syncing" });
-
-    // Simulate API call
-    setTimeout(async () => {
-      const success = Math.random() > 0.1; // 90% success rate
-
-      if (success) {
-        const syncedReport: IncidentReport = { ...report, status: "synced" };
-
-        // React UI updates automatically via useLiveQuery
-        registerFieldIncident(syncedReport, storage.getUser()?.name);
-
-        // ✅ Report saved successfully / synced successfully
-        toastMaroon("Report synced successfully", { icon: icons.success });
-      } else {
-        await db.reports.update(reportId, { status: "failed" });
-
-        toastMaroon("Sync failed - will retry later", { icon: icons.error });
-      }
-    }, 2000);
-  };
 
   const syncReports = async () => {
     if (!isOnline) {
@@ -195,20 +193,18 @@ export default function EmergencyResponseRoute() {
       return;
     }
 
-    // Sync each report
-    for (const report of unsyncedReports) {
-      syncSingleReport(report.id);
-    }
+    toastMaroon("Syncing reports...", { icon: icons.online });
+    await sync();
   };
 
-  const handleRetrySync = (reportId: string) => {
+  const handleRetrySync = async () => {
     if (!isOnline) {
       toastMaroon("Cannot retry while offline", { icon: icons.offline });
       return;
     }
 
     toastMaroon("Retrying sync...", { icon: icons.retry });
-    syncSingleReport(reportId);
+    await sync();
   };
 
   const pendingCount = reports.filter((r) => r.status !== "synced").length;
@@ -219,6 +215,61 @@ export default function EmergencyResponseRoute() {
 
   return (
     <>
+      {shouldShowInstallBanner && (
+        <div
+          style={{
+            background: WHITE,
+            border: `1px solid ${BORDER}`,
+            borderRadius: 12,
+            padding: 16,
+            marginBottom: 16,
+            display: "flex",
+            gap: 16,
+            alignItems: "center",
+            justifyContent: "space-between",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.08)",
+          }}
+        >
+          <div>
+            <p style={{ fontWeight: 600, color: MAROON }}>Install Nodus for offline access</p>
+            <p style={{ margin: 0, color: "#4A4A4A" }}>
+              Add the dashboard to your device for faster incident reporting.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: 12 }}>
+            <button
+              onClick={handleInstallPWA}
+              style={{
+                background: MAROON,
+                color: WHITE,
+                border: "none",
+                borderRadius: 9999,
+                padding: "8px 20px",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              Install
+            </button>
+            <button
+              onClick={handleDismissInstallBanner}
+              style={{
+                background: "transparent",
+                color: MAROON,
+                border: `1px solid ${BORDER}`,
+                borderRadius: 9999,
+                padding: "8px 20px",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              Later
+            </button>
+          </div>
+        </div>
+      )}
+
       {currentScreen === "home" && (
         <HomeScreen
           isOnline={isOnline}
@@ -243,7 +294,7 @@ export default function EmergencyResponseRoute() {
           reports={reports}
           onBack={() => setCurrentScreen("home")}
           onSync={syncReports}
-          onRetry={handleRetrySync}
+          onRetry={() => handleRetrySync()}
         />
       )}
     </>

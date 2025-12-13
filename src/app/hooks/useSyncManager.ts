@@ -173,5 +173,5 @@ export const useSyncManager = () => {
         };
     }, [sync, updatePendingCount]);
 
-    return { isSyncing, pendingCount, syncError };
+    return { isSyncing, pendingCount, syncError, sync };
 };
