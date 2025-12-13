@@ -56,7 +56,7 @@ function toastMaroon(
 export default function EmergencyResponseRoute() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
+
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
   const isOnline = useOnlineStatus();
   const { registerFieldIncident } = useIncidentData();
@@ -84,14 +84,10 @@ export default function EmergencyResponseRoute() {
       setIsAuthenticated(true);
       setCurrentScreen("home");
     }
+  }, []);
 
-    // Register synced reports from Dexie to the IncidentProvider
-    reports
-      .filter((report) => report.status === "synced")
-      .forEach((report) => {
-        registerFieldIncident(report, storage.getUser()?.name);
-      });
-  }, [registerFieldIncident, reports]);
+  // NOTE: Reports are now automatically synced to IncidentProvider via its internal useLiveQuery.
+  // We don't need to manually register them here anymore.
 
   useEffect(() => {
     // Auto-sync when coming online
