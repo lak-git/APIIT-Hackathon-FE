@@ -12,8 +12,7 @@ interface AccountApproval {
   region: string;
 }
 
-interface AccountApprovalsProps {
-}
+interface AccountApprovalsProps {}
 
 const MOCK_APPROVALS: AccountApproval[] = [
   {
@@ -38,7 +37,7 @@ const MOCK_APPROVALS: AccountApproval[] = [
   },
 ];
 
-export function AccountApprovals({ }: AccountApprovalsProps) {
+export function AccountApprovals({}: AccountApprovalsProps) {
   const [page, setPage] = useState(1);
   const ITEMS_PER_PAGE = 5;
 
@@ -54,34 +53,32 @@ export function AccountApprovals({ }: AccountApprovalsProps) {
   );
 
   return (
-    <div className="bg-white rounded-lg shadow-md border border-[#E5D5C3] overflow-hidden">
+    <div className="bg-white rounded-lg shadow-md border border-gray-300 overflow-hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-[#E5D5C3] bg-[#FAF3E8] flex justify-between items-center">
+      <div className="px-4 py-3 border-b border-gray-300 bg-black flex justify-between items-center">
         <div>
-          <h3 className="text-[#800020] font-semibold text-sm">
+          <h3 className="text-white font-semibold text-sm">
             Pending Responder Account Approvals
           </h3>
-          <p className="text-xs text-[#6B4423] mt-1">
+          <p className="text-xs text-white mt-1">
             Review and approve verified responders before granting system access.
           </p>
         </div>
       </div>
 
-      {/* Table wrapper (horizontal scroll) */}
+      {/* Table wrapper */}
       <div
         className={[
-          "overflow-x-auto",
-          "overflow-y-hidden",
-          // neat scrollbar
+          "overflow-x-auto overflow-y-hidden",
           "[&::-webkit-scrollbar]:h-2",
-          "[&::-webkit-scrollbar-track]:bg-[#FAF3E8]",
-          "[&::-webkit-scrollbar-thumb]:bg-[#D6C2AE]",
+          "[&::-webkit-scrollbar-track]:bg-white",
+          "[&::-webkit-scrollbar-thumb]:bg-gray-300",
           "[&::-webkit-scrollbar-thumb]:rounded-full",
-          "[&::-webkit-scrollbar-thumb:hover]:bg-[#C4AE98]",
+          "[&::-webkit-scrollbar-thumb:hover]:bg-gray-400",
         ].join(" ")}
       >
         <table className="min-w-[1200px] w-full border-separate border-spacing-0">
-          <thead className="bg-[#F0E6D8] sticky top-0 z-10">
+          <thead className="bg-white sticky top-0 z-10 border-b border-gray-300">
             <tr>
               {[
                 "Name",
@@ -95,7 +92,7 @@ export function AccountApprovals({ }: AccountApprovalsProps) {
               ].map((h) => (
                 <th
                   key={h}
-                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-[#4A1A1A] whitespace-nowrap"
+                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-black whitespace-nowrap"
                 >
                   {h}
                 </th>
@@ -107,33 +104,33 @@ export function AccountApprovals({ }: AccountApprovalsProps) {
             {approvals.map((user) => (
               <tr
                 key={user.id}
-                className="border-t border-[#E5D5C3] hover:bg-[#FAF3E8] transition-colors"
+                className="border-t border-gray-300 hover:bg-gray-100 transition-colors"
               >
-                <td className="px-4 py-3 font-medium text-[#4A1A1A] whitespace-nowrap">
+                <td className="px-4 py-3 font-medium text-black whitespace-nowrap">
                   {user.fullName}
                 </td>
 
-                <td className="px-4 py-3 text-sm text-[#6B4423] whitespace-nowrap">
+                <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                   {user.email}
                 </td>
 
-                <td className="px-4 py-3 text-sm text-[#6B4423] whitespace-nowrap">
+                <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                   {user.phone}
                 </td>
 
-                <td className="px-4 py-3 text-sm text-[#6B4423] whitespace-nowrap">
+                <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                   {user.organization}
                 </td>
 
-                <td className="px-4 py-3 text-sm font-mono text-[#4A1A1A] whitespace-nowrap">
+                <td className="px-4 py-3 text-sm font-mono text-black whitespace-nowrap">
                   {user.employeeId}
                 </td>
 
-                <td className="px-4 py-3 text-sm text-[#6B4423] whitespace-nowrap">
+                <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                   {user.designation}
                 </td>
 
-                <td className="px-4 py-3 text-sm text-[#6B4423] whitespace-nowrap">
+                <td className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                   {user.region}
                 </td>
 
@@ -141,7 +138,7 @@ export function AccountApprovals({ }: AccountApprovalsProps) {
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-md bg-[#166534] text-white hover:bg-[#14532D]"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-md bg-black text-white hover:bg-gray-900"
                     >
                       <Check className="w-4 h-4" />
                       Approve
@@ -149,7 +146,7 @@ export function AccountApprovals({ }: AccountApprovalsProps) {
 
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-md bg-[#8B1E2D] text-white hover:bg-[#6B1B2B]"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-md bg-black text-white hover:bg-gray-900"
                     >
                       <X className="w-4 h-4" />
                       Reject
@@ -164,8 +161,8 @@ export function AccountApprovals({ }: AccountApprovalsProps) {
 
       {/* Pagination */}
       {MOCK_APPROVALS.length > ITEMS_PER_PAGE && (
-        <div className="flex items-center justify-between px-4 py-2 border-t border-[#E5D5C3] bg-white">
-          <span className="text-xs text-[#6B4423]">
+        <div className="flex items-center justify-between px-4 py-2 border-t border-gray-300 bg-white">
+          <span className="text-xs text-gray-600">
             Page <strong>{page}</strong> of <strong>{totalPages}</strong>
           </span>
 
@@ -173,14 +170,14 @@ export function AccountApprovals({ }: AccountApprovalsProps) {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1 text-xs font-semibold border border-[#E5D5C3] rounded-md hover:bg-[#FAF3E8] disabled:opacity-50"
+              className="px-3 py-1 text-xs font-semibold border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50"
             >
               Previous
             </button>
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-3 py-1 text-xs font-semibold border border-[#E5D5C3] rounded-md hover:bg-[#FAF3E8] disabled:opacity-50"
+              className="px-3 py-1 text-xs font-semibold border border-gray-300 rounded-md hover:bg-gray-100 disabled:opacity-50"
             >
               Next
             </button>
