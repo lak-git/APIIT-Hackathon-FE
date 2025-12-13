@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
-import type { Incident } from "../types/incident";
+import type { Incident } from "../../types/incident";
 import "leaflet/dist/leaflet.css";
 
 // Fix for missing Leaflet icons if needed (though we use CircleMarkers mostly)

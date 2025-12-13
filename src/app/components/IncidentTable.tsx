@@ -1,4 +1,4 @@
-import type { Incident } from "../types/incident";
+import type { Incident } from "../../types/incident";
 import { AlertCircle, Info } from "lucide-react";
 
 interface IncidentTableProps {
