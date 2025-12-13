@@ -12,7 +12,7 @@ import { usePWAInstallPrompt } from "./hooks/usePWAInstallPrompt";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type IncidentReport } from "../db/db";
 import { storage } from "./utils/storage";
-// Auth is handled via AuthProvider - no direct service imports needed here
+import { getCurrentUser, getUserProfile } from "./services/authService";
 import {
     CheckCircle2,
     Info,
@@ -56,8 +56,6 @@ function toastBlack(
     });
 }
 
-import { useGeolocation } from "./hooks/useGeolocation";
-import { calculateDistance } from "./utils/geo";
 // ✅ Loading toast (syncing)
 export default function EmergencyResponseRoute() {
   const { registerFieldIncident, incidents: activeIncidents } = useIncidentData();
