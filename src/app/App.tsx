@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { toast, Toaster } from "sonner";
+import { toast } from "sonner";
 
 import { LoginScreen } from "./components/LoginScreen";
 import { HomeScreen } from "./components/HomeScreen";
@@ -8,6 +8,7 @@ import { PendingReportsScreen } from "./components/PendingReportsScreen";
 
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { storage, type IncidentReport } from "./utils/storage";
+import { useIncidentData } from "../providers/IncidentProvider";
 
 import {
   CheckCircle2,
@@ -55,6 +56,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [reports, setReports] = useState<IncidentReport[]>([]);
   const isOnline = useOnlineStatus();
+  const { registerFieldIncident } = useIncidentData();
 
   // Icons pre-built (maroon)
   const icons = useMemo(
@@ -83,7 +85,13 @@ export default function App() {
     // Load reports from localStorage
     const savedReports = storage.getReports();
     setReports(savedReports);
-  }, []);
+
+    savedReports
+      .filter((report) => report.status === "synced")
+      .forEach((report) => {
+        registerFieldIncident(report, storage.getUser()?.name);
+      });
+  }, [registerFieldIncident]);
 
   useEffect(() => {
     // Auto-sync when coming online
@@ -155,10 +163,12 @@ export default function App() {
       const success = Math.random() > 0.1; // 90% success rate
 
       if (success) {
+        const syncedReport: IncidentReport = { ...report, status: "synced" };
         storage.updateReport(reportId, { status: "synced" });
         setReports((prev) =>
-          prev.map((r) => (r.id === reportId ? { ...r, status: "synced" } : r)),
+          prev.map((r) => (r.id === reportId ? syncedReport : r)),
         );
+        registerFieldIncident(syncedReport, storage.getUser()?.name);
 
         // ✅ Report saved successfully / synced successfully
         toastMaroon("Report synced successfully", { icon: icons.success });
@@ -207,12 +217,7 @@ export default function App() {
   const pendingCount = reports.filter((r) => r.status !== "synced").length;
 
   if (!isAuthenticated) {
-    return (
-      <>
-        <LoginScreen onLogin={handleLogin} />
-        <Toaster position="top-center" richColors />
-      </>
-    );
+    return <LoginScreen onLogin={handleLogin} />;
   }
 
   return (
@@ -243,8 +248,6 @@ export default function App() {
           onRetry={handleRetrySync}
         />
       )}
-
-      <Toaster position="top-center" richColors />
     </>
   );
 }
