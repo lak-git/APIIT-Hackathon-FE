@@ -75,12 +75,7 @@ export default function CommandDashboardRoute() {
 
   return (
     <section className="space-y-6 relative">
-      {/* DEBUG INFO - REMOVE LATER */}
-      <div className="bg-yellow-100 p-2 text-xs font-mono border border-yellow-300 rounded">
-        DEBUG: Total Incidents: {incidents.length} | Filtered: {filteredIncidents.length}
-        <br />
-        Sample ID: {incidents[0]?.id} | Type: {incidents[0]?.type} | Sev: {incidents[0]?.severity}
-      </div>
+
 
       <SummaryBadges incidents={incidents} />
 
