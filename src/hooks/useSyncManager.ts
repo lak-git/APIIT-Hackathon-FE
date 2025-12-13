@@ -20,13 +20,15 @@ export const useSyncManager = () => {
     }, []);
 
     const sync = useCallback(async () => {
+        console.log("[SyncManager] Sync triggered");
+        
         if (!navigator.onLine) {
-            console.log("Offline, skipping sync.");
+            console.log("[SyncManager] Offline, skipping sync.");
             return;
         }
 
         if (isSyncing) {
-            console.log("Sync already in progress.");
+            console.log("[SyncManager] Sync already in progress.");
             return;
         }
 
@@ -34,27 +36,30 @@ export const useSyncManager = () => {
         setSyncError(null);
 
         try {
+            console.log("[SyncManager] Querying Dexie for pending reports...");
             // Check for any report that needs syncing (local, pending, or failed from previous attempts)
             const pendingIncidents = await db.reports
                 .where('status')
                 .anyOf('local', 'pending', 'failed')
                 .toArray();
 
-            console.log('Checking for pending incidents...', pendingIncidents);
+            console.log('[SyncManager] Pending incidents found:', pendingIncidents);
 
             if (pendingIncidents.length === 0) {
-                console.log("No pending incidents found.");
+                console.log("[SyncManager] No pending incidents found.");
                 setIsSyncing(false);
                 return;
             }
 
-            console.log(`Found ${pendingIncidents.length} incidents to sync.`);
+            console.log(`[SyncManager] Found ${pendingIncidents.length} incidents to sync.`);
 
             for (const incident of pendingIncidents) {
+                console.log(`[SyncManager] Processing incident ${incident.id}`, incident);
                 let finalImageUrl = incident.photo;
 
                 // 1. Image Handling
                 if (incident.photo && incident.photo.startsWith('data:')) {
+                    console.log(`[SyncManager] Uploading image for ${incident.id}...`);
                     try {
                         // Convert base64/data URL to Blob
                         const res = await fetch(incident.photo);
@@ -67,24 +72,29 @@ export const useSyncManager = () => {
                             .upload(fileName, blob);
 
                         if (uploadError) {
-                            console.error(`Failed to upload image for incident ${incident.id}:`, uploadError);
+                            console.error(`[SyncManager] Failed to upload image for incident ${incident.id}:`, uploadError);
                             setSyncError(`Image upload failed: ${uploadError.message}`);
                             // Skip this item if image upload is critical, or continue?
                             // Assuming we should retry later if upload fails.
                             continue;
                         }
+                        
+                        console.log(`[SyncManager] Image uploaded successfully:`, data);
 
                         if (data) {
                             const { data: publicUrlData } = supabase.storage
                                 .from('disaster-photos')
                                 .getPublicUrl(data.path);
                             finalImageUrl = publicUrlData.publicUrl;
+                            console.log(`[SyncManager] Public image URL:`, finalImageUrl);
                         }
                     } catch (e) {
-                        console.error("Error processing image:", e);
+                        console.error("[SyncManager] Error processing image:", e);
                         setSyncError("Error processing image");
                         continue;
                     }
+                } else {
+                    console.log(`[SyncManager] No base64 image found for ${incident.id}, skipping upload.`);
                 }
 
                 // 2. Database Insert
@@ -101,6 +111,8 @@ export const useSyncManager = () => {
                     created_at: incident.createdAt,
                     occurred_at: incident.timestamp // Map local timestamp to occurred_at
                 };
+                
+                console.log(`[SyncManager] Inserting payload to Supabase:`, payload);
 
                 const { error: insertError } = await supabase
                     .from('incidents')
@@ -108,17 +120,21 @@ export const useSyncManager = () => {
 
                 // 3. Duplicate Handling & Completion
                 if (insertError) {
+                    console.log(`[SyncManager] Insert result: Error`, insertError);
                     // Check for Unique Violation (23505)
                     if (insertError.code === '23505') {
-                        console.log(`Incident ${incident.id} already exists (duplicate). Marking as synced.`);
+                        console.log(`[SyncManager] Incident ${incident.id} already exists (duplicate). Marking as synced.`);
                     } else {
-                        console.error(`Failed to insert incident ${incident.id}:`, insertError);
+                        console.error(`[SyncManager] Failed to insert incident ${incident.id}:`, insertError);
                         setSyncError(`Insert failed: ${insertError.message}`);
                         continue;
                     }
+                } else {
+                    console.log(`[SyncManager] Insert successful for ${incident.id}`);
                 }
 
                 // Success or Duplicate -> Update local Dexie record
+                console.log(`[SyncManager] Updating local DB status to 'synced' for ${incident.id}`);
                 await db.reports.update(incident.id, {
                     status: 'synced',
                     photo: finalImageUrl // Update photo with URL to save space
@@ -128,10 +144,11 @@ export const useSyncManager = () => {
             await updatePendingCount();
 
         } catch (err: any) {
-            console.error("Critical sync error:", err);
+            console.error("[SyncManager] Critical sync error:", err);
             setSyncError(err.message || "Unknown sync error");
         } finally {
             setIsSyncing(false);
+            console.log("[SyncManager] Sync process finished.");
         }
     }, [isSyncing, updatePendingCount]);
 
