@@ -15,6 +15,7 @@ interface IncidentContextValue {
   setIncidents: React.Dispatch<React.SetStateAction<Incident[]>>;
   registerFieldIncident: (report: IncidentReport, reporterName?: string) => Incident;
   resetToMock: () => void;
+  resolveIncident: (id: string) => Promise<void>;
   sync: () => Promise<void>;
 }
 
@@ -103,7 +104,7 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
                   },
                   description: row.description || "Command Center Report",
                   imageUrl: row.image_url,
-                  status: 'Active',
+                  status: row.status as any, // Use mapped status from DB
                   reportedBy: "Command Center",
                 }));
                 setRemoteIncidents(mappedRemote);
@@ -136,12 +137,12 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
         .channel('public:incidents')
         .on(
           'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'incidents' },
+          { event: '*', schema: 'public', table: 'incidents' },
           (payload) => {
+            console.log(`[IncidentProvider] Realtime Event: ${payload.eventType}`);
             const newRow = payload.new as any;
-            console.log("[IncidentProvider] Realtime Update Received:", newRow.id);
 
-            const newIncident: Incident = {
+            const mappedIncident: Incident = {
               id: newRow.id,
               type: newRow.incident_type as IncidentType,
               severity: Number(newRow.severity) as 1 | 2 | 3 | 4 | 5,
@@ -153,11 +154,18 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
               },
               description: newRow.description || "Realtime Report",
               imageUrl: newRow.image_url,
-              status: 'Active',
+              status: newRow.status as any,
               reportedBy: "Realtime Update",
             };
 
-            setRemoteIncidents((prev) => [newIncident, ...prev]);
+            setRemoteIncidents((prev) => {
+              if (payload.eventType === 'INSERT') {
+                return [mappedIncident, ...prev];
+              } else if (payload.eventType === 'UPDATE') {
+                return prev.map(inc => inc.id === mappedIncident.id ? mappedIncident : inc);
+              }
+              return prev;
+            });
           }
         )
         .subscribe();
@@ -211,15 +219,65 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
   const resetToMock = useCallback(() => {
   }, []);
 
+  const resolveIncident = useCallback(async (id: string) => {
+    // 1. Optimistic Update (UI updates immediately)
+    setRemoteIncidents(prev => prev.map(inc =>
+      inc.id === id ? { ...inc, status: 'Resolved' } : inc
+    ));
+
+    console.log(`[IncidentProvider] resolving incident ${id}. Using REST API fallback.`);
+
+    try {
+      if (!session?.access_token) {
+        console.error("[IncidentProvider] Cannot resolve: No session token available.");
+        // Revert optimistic update here if needed
+        return;
+      }
+
+      // 2. Use Raw REST API for reliability (SDK has known issues in this env)
+      const updateUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/incidents?id=eq.${id}`;
+
+      const response = await fetch(updateUrl, {
+        method: 'PATCH',
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation' // Ask for the updated row back
+        },
+        body: JSON.stringify({ status: 'Resolved' })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[IncidentProvider] REST Update Failed: ${response.status} ${response.statusText}`, errorText);
+        throw new Error(`Failed to update incident: ${response.status} ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log("[IncidentProvider] REST Update Success:", data);
+
+      if (Array.isArray(data) && data.length === 0) {
+        console.warn("[IncidentProvider] Update succeeded but returned no rows. Check RLS policies or ID.");
+      }
+
+    } catch (e: any) {
+      console.error("[IncidentProvider] Error resolving incident:", e);
+      // Optional: Revert optimistic update if API fails
+      // setRemoteIncidents(prev => ... revert ... );
+    }
+  }, [session?.access_token]);
+
   const value = useMemo(
     () => ({
       incidents,
       setIncidents,
       registerFieldIncident,
       resetToMock,
+      resolveIncident,
       sync
     }),
-    [incidents, registerFieldIncident, resetToMock, sync],
+    [incidents, registerFieldIncident, resetToMock, resolveIncident, sync],
   );
 
   return <IncidentContext.Provider value={value}>{children}</IncidentContext.Provider>;
