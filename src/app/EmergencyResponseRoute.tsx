@@ -85,6 +85,13 @@ function toastMaroonLoading(
 export default function EmergencyResponseRoute() {
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
   const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(storage.getAuthToken()));
+
+  const syncPendingCountRef = useRef(0);
+  const syncToastIdRef = useRef<string | number | null>(null);
+
+  const { canInstall, promptInstall, dismissPrompt } = usePWAInstallPrompt();
+  const shouldShowInstallBanner = canInstall && !installBannerDismissed;
 
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
   const isOnline = useOnlineStatus();
