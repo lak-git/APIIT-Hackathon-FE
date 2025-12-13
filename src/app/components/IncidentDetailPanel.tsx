@@ -134,9 +134,6 @@ export function IncidentDetailPanel({
                     Location
                   </h4>
                   <p className="text-gray-700 mb-1">
-                    {incident.location.address ?? "Address unavailable"}
-                  </p>
-                  <p className="text-gray-500 text-sm font-mono">
                     {incident.location.lat.toFixed(4)},{" "}
                     {incident.location.lng.toFixed(4)}
                   </p>

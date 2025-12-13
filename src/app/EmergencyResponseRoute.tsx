@@ -13,6 +13,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, type IncidentReport } from "../db/db";
 import { storage } from "./utils/storage";
 import { getCurrentUser, getUserProfile } from "./services/authService";
+import { useNearbyIncidents } from "./hooks/useNearbyIncidents";
 import {
     CheckCircle2,
     Info,
@@ -59,6 +60,7 @@ function toastBlack(
 // ✅ Loading toast (syncing)
 export default function EmergencyResponseRoute() {
   const { registerFieldIncident, incidents: activeIncidents } = useIncidentData();
+  const nearbyIncidents = useNearbyIncidents(activeIncidents);
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
   const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
 
@@ -331,6 +333,7 @@ export default function EmergencyResponseRoute() {
           onViewReports={() => setCurrentScreen("reports")}
           onLogout={handleLogout}
           remoteIncidents={activeIncidents}
+          nearbyIncidents={nearbyIncidents}
         />
       )}
 
