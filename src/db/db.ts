@@ -8,6 +8,7 @@ interface IncidentReport {
   location: {
     latitude: number;
     longitude: number;
+    address?: string;
   };
   timestamp: string;
   photo?: string;

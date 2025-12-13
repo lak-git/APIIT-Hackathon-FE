@@ -98,6 +98,7 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
                   location: {
                     lat: row.latitude,
                     lng: row.longitude,
+                    address: row.address, // Attempt to read address from DB row
                   },
                   description: row.description || "Command Center Report",
                   imageUrl: row.image_url,
