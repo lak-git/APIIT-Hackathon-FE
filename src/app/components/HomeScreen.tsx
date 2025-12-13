@@ -12,6 +12,7 @@ interface HomeScreenProps {
   onViewReports: () => void;
   onLogout: () => void;
   remoteIncidents?: any[];
+  nearbyIncidents?: any[];
 }
 
 export function HomeScreen({
@@ -21,6 +22,7 @@ export function HomeScreen({
   onViewReports,
   onLogout,
   remoteIncidents = [],
+  nearbyIncidents = [],
 }: HomeScreenProps) {
   useEffect(() => {
     console.log(`[HomeScreen] Mounted. Incidents received: ${remoteIncidents.length}`);
@@ -126,8 +128,45 @@ export function HomeScreen({
           </Card>
         </div>
 
+        {/* Nearby Incidents Alert - High Priority */}
+        {nearbyIncidents.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-red-600 mb-4 flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+              </span>
+              Nearby Alerts
+            </h2>
+            <div className="space-y-3">
+              {nearbyIncidents.map((incident: any) => (
+                <Card key={`nearby-${incident.id}`} className="p-4 border-l-4 border-l-red-500 border-y border-r border-gray-200 shadow-sm bg-red-50/50">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="outline" className="border-red-200 text-red-700 bg-red-100">
+                          Within 1km
+                        </Badge>
+                        <span className="text-xs text-red-600/70 font-medium">
+                          {new Date(incident.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-900 font-medium line-clamp-2">
+                        {incident.description}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                         {incident.location.address || "Unknown Location"}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Remote Active Incidents List */}
-        <div className="mt-8">
+        <div>
           <h2 className="text-lg font-semibold text-black mb-4">Active Incidents</h2>
           <div className="space-y-3">
             {remoteIncidents.length === 0 ? (
