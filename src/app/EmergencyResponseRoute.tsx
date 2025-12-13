@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { LoginScreen } from "./components/LoginScreen";
@@ -6,13 +7,11 @@ import { HomeScreen } from "./components/HomeScreen";
 import { CreateIncidentScreen } from "./components/CreateIncidentScreen";
 
 import { PendingReportsScreen } from "./components/PendingReportsScreen";
-import CommandDashboardRoute from "../routes/CommandDashboardRoute";
 
 import { useIncidentData } from "../providers/IncidentProvider";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { usePWAInstallPrompt } from "./hooks/usePWAInstallPrompt";
 import { useLiveQuery } from "dexie-react-hooks";
-import { storage } from "./utils/storage";
 import { db, type IncidentReport } from "../db/db";
 import { useAuth } from "../providers/AuthProvider";
 
@@ -28,7 +27,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-type Screen = "login" | "home" | "create" | "reports" | "dashboard";
+type Screen = "login" | "home" | "create" | "reports";
 
 const MAROON = "#800020";
 const WHITE = "#FFFFFF";
@@ -61,6 +60,7 @@ export default function EmergencyResponseRoute() {
   const { isAuthenticated, isAdmin, login, logout } = useAuth();
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
   const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
+  const navigate = useNavigate();
 
   const reports = useLiveQuery(() => db.reports.toArray()) ?? [];
   const isOnline = useOnlineStatus();
@@ -86,14 +86,15 @@ export default function EmergencyResponseRoute() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      // Only redirect if we are currently on the login screen
-      if (currentScreen === "login") {
-        setCurrentScreen(isAdmin ? "dashboard" : "home");
+      if (isAdmin) {
+        navigate("/command");
+      } else if (currentScreen === "login") {
+        setCurrentScreen("home");
       }
     } else {
       setCurrentScreen("login");
     }
-  }, [isAuthenticated, isAdmin, currentScreen]);
+  }, [isAuthenticated, isAdmin, currentScreen, navigate]);
 
   // NOTE: Reports are now automatically synced to IncidentProvider via its internal useLiveQuery.
   // We don't need to manually register them here anymore.
@@ -128,9 +129,6 @@ export default function EmergencyResponseRoute() {
 
   const handleLogout = async () => {
     await logout();
-    storage.clearAuthToken();
-    storage.clearUser();
-
     // State update handles via useEffect
     toastMaroon("Logged out", { icon: icons.logout });
   };
@@ -298,8 +296,6 @@ export default function EmergencyResponseRoute() {
           onRetry={() => handleRetrySync()}
         />
       )}
-
-      {currentScreen === "dashboard" && <CommandDashboardRoute />}
     </>
   );
 }
