@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useGeolocation } from "../../hooks/useGeolocation";
 import { ArrowLeft, MapPin, Camera, Clock, Save } from "lucide-react";
 
 import { Button } from "./ui/button";
@@ -51,50 +52,22 @@ export function CreateIncidentScreen({
   const [location, setLocation] = useState<LatLng | null>(null);
   const [photo, setPhoto] = useState<string | undefined>(undefined);
   const [timestamp] = useState<string>(new Date().toISOString());
-  const [locationLoading, setLocationLoading] = useState<boolean>(false);
+  const {
+    latitude,
+    longitude,
+    loading: hookLoading,
+    retry: captureLocation,
+    isStale
+  } = useGeolocation();
 
-  const captureLocation = useCallback(() => {
-    setLocationLoading(true);
-
-    const fallbackLocation: LatLng = {
-      latitude: 37.7749,
-      longitude: -122.4194,
-    };
-
-    if (!navigator.geolocation) {
-      setLocation(fallbackLocation);
-      setLocationLoading(false);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLocation({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-        setLocationLoading(false);
-      },
-      (error) => {
-        console.error("Error getting location:", error);
-        setLocation(fallbackLocation);
-        setLocationLoading(false);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      },
-    );
-  }, []);
+  // Use hook loading state directly
+  const locationLoading = hookLoading;
 
   useEffect(() => {
-    const t = window.setTimeout(() => {
-      captureLocation();
-    }, 0);
-
-    return () => window.clearTimeout(t);
-  }, [captureLocation]);
+    if (latitude !== null && longitude !== null) {
+      setLocation({ latitude, longitude });
+    }
+  }, [latitude, longitude]);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -238,13 +211,18 @@ export function CreateIncidentScreen({
             ) : location ? (
               <div>
                 {/* Map preview */}
-                <div className="rounded-lg overflow-hidden border border-border bg-muted/20">
+                <div className="rounded-lg overflow-hidden border border-border bg-muted/20 relative">
                   <iframe
                     title="Location map"
                     src={mapSrc}
                     className="w-full h-44"
                     loading="lazy"
                   />
+                  {isStale && (
+                    <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded shadow">
+                      Cached (Offline)
+                    </div>
+                  )}
                 </div>
 
                 {/* Space below map */}
