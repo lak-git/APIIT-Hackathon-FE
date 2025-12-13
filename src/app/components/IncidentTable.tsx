@@ -119,7 +119,7 @@ export function IncidentTable({
                       index % 2 === 0 ? "bg-white" : "bg-white",
                       "hover:bg-gray-50",
                       isSelected
-                        ? "ring-2 ring-black ring-inset bg-gray-50"
+                        ? "!bg-gray-200"
                         : "",
                     ].join(" ")}
                   >
