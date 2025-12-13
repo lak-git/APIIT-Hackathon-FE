@@ -1,4 +1,4 @@
-import { Outlet} from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { Toaster } from "sonner";
 
 import { IncidentProvider } from "./providers/IncidentProvider";
