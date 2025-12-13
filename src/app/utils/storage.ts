@@ -10,6 +10,9 @@ export interface IncidentReport {
   photo?: string;
   status: 'local' | 'pending' | 'syncing' | 'synced' | 'failed';
   createdAt: string;
+  retryCount?: number;
+  nextRetryAt?: string | null;
+  lastAttemptAt?: string | null;
 }
 
 const STORAGE_KEYS = {

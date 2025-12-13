@@ -1,6 +1,52 @@
 import { useState, useEffect, useCallback } from 'react';
-import { db } from '../../db/db';
+import { db, type IncidentReport } from '../../db/db';
 import { supabase } from '../../supabaseClient';
+import { syncPendingIncidents } from '../services/incidentSync';
+import { INCIDENT_PERIODIC_SYNC_TAG, INCIDENT_SYNC_TAG, PERIODIC_SYNC_INTERVAL_MS } from '../../sw/syncTags';
+
+const supportsServiceWorkers = typeof window !== 'undefined' && 'serviceWorker' in navigator;
+const supportsBackgroundSync = supportsServiceWorkers && 'SyncManager' in window;
+
+const shouldRegisterSync = (status: IncidentReport['status']) =>
+    status === 'local' || status === 'pending' || status === 'failed';
+
+const requestPeriodicPermission = async () => {
+    try {
+        if (!('permissions' in navigator) || typeof (navigator as any).permissions?.query !== 'function') {
+            return true;
+        }
+        const result = await (navigator as any).permissions.query({ name: 'periodic-background-sync' });
+        return result.state !== 'denied';
+    } catch {
+        return false;
+    }
+};
+
+const registerPeriodicSync = async (registration: ServiceWorkerRegistration) => {
+    const periodicSync = (registration as ServiceWorkerRegistration & {
+        periodicSync?: {
+            register(tag: string, config: { minInterval: number }): Promise<void>;
+        };
+    }).periodicSync;
+
+    if (!periodicSync) {
+        return;
+    }
+
+    const hasPermission = await requestPeriodicPermission();
+    if (!hasPermission) {
+        return;
+    }
+
+    try {
+        const tags = await periodicSync.getTags?.();
+        if (!tags || !tags.includes(INCIDENT_PERIODIC_SYNC_TAG)) {
+            await periodicSync.register(INCIDENT_PERIODIC_SYNC_TAG, { minInterval: PERIODIC_SYNC_INTERVAL_MS });
+        }
+    } catch (error) {
+        console.warn('[SyncManager] Unable to register periodic sync', error);
+    }
+};
 
 export const useSyncManager = () => {
     const [isSyncing, setIsSyncing] = useState(false);
@@ -9,169 +55,150 @@ export const useSyncManager = () => {
 
     const updatePendingCount = useCallback(async () => {
         try {
-            const count = await db.reports
-                .where('status')
-                .anyOf('local', 'pending', 'failed')
-                .count();
+            const count = await db.reports.where('status').anyOf('local', 'pending', 'failed').count();
             setPendingCount(count);
         } catch (error) {
-            console.error("Failed to count pending items:", error);
+            console.error('[SyncManager] Failed to count pending items:', error);
         }
     }, []);
 
-    const sync = useCallback(async () => {
-        // console.log("[SyncManager] Sync triggered");
-
-        if (!navigator.onLine) {
-            console.log("[SyncManager] Offline, skipping sync.");
-            return;
+    const registerBackgroundSync = useCallback(async () => {
+        if (!supportsBackgroundSync) {
+            return false;
         }
-
-        if (isSyncing) {
-            // console.log("[SyncManager] Sync already in progress.");
-            return;
-        }
-
-        setIsSyncing(true);
-        setSyncError(null);
 
         try {
-            // console.log("[SyncManager] Querying Dexie for pending reports...");
-            // Check for any report that needs syncing (local, pending, or failed from previous attempts)
-            const pendingIncidents = await db.reports
-                .where('status')
-                .anyOf('local', 'pending', 'failed')
-                .toArray();
+            const registration = await navigator.serviceWorker.ready;
+            const syncManager = (registration as ServiceWorkerRegistration & { sync?: SyncManager }).sync;
+            if (!syncManager) {
+                return false;
+            }
 
-            // console.log('[SyncManager] Pending incidents found:', pendingIncidents);
+            await syncManager.register(INCIDENT_SYNC_TAG);
+            await registerPeriodicSync(registration);
+            return true;
+        } catch (error) {
+            console.warn('[SyncManager] Unable to register background sync', error);
+            return false;
+        }
+    }, []);
 
-            if (pendingIncidents.length === 0) {
-                // console.log("[SyncManager] No pending incidents found.");
-                setIsSyncing(false);
+    const sync = useCallback(
+        async ({ force = false }: { force?: boolean } = {}) => {
+            if (!navigator.onLine && !force) {
+                await registerBackgroundSync();
                 return;
             }
 
-            // console.log(`[SyncManager] Found ${pendingIncidents.length} incidents to sync.`);
-
-            for (const incident of pendingIncidents) {
-                console.log(`[SyncManager] Processing incident ${incident.id}`, incident);
-                let finalImageUrl = incident.photo;
-
-                // 1. Image Handling
-                if (incident.photo && incident.photo.startsWith('data:')) {
-                    console.log(`[SyncManager] Uploading image for ${incident.id}...`);
-                    try {
-                        // Convert base64/data URL to Blob
-                        const res = await fetch(incident.photo);
-                        const blob = await res.blob();
-                        const fileExt = incident.photo.match(/data:image\/(\w+);base64/)?.[1] || 'jpg';
-                        const fileName = `${incident.id}_${Date.now()}.${fileExt}`;
-
-                        const { data, error: uploadError } = await supabase.storage
-                            .from('disaster-photos')
-                            .upload(fileName, blob);
-
-                        if (uploadError) {
-                            console.error(`[SyncManager] Failed to upload image for incident ${incident.id}:`, uploadError);
-                            setSyncError(`Image upload failed: ${uploadError.message}`);
-                            // Skip this item if image upload is critical, or continue?
-                            // Assuming we should retry later if upload fails.
-                            continue;
-                        }
-
-                        console.log(`[SyncManager] Image uploaded successfully:`, data);
-
-                        if (data) {
-                            const { data: publicUrlData } = supabase.storage
-                                .from('disaster-photos')
-                                .getPublicUrl(data.path);
-                            finalImageUrl = publicUrlData.publicUrl;
-                            console.log(`[SyncManager] Public image URL:`, finalImageUrl);
-                        }
-                    } catch (e) {
-                        console.error("[SyncManager] Error processing image:", e);
-                        setSyncError("Error processing image");
-                        continue;
-                    }
-                } else {
-                    console.log(`[SyncManager] No base64 image found for ${incident.id}, skipping upload.`);
-                }
-
-                // 2. Database Insert
-                // Mapping IncidentReport fields to Supabase incidents table
-                const payload = {
-                    incident_type: incident.type,
-                    severity: incident.severity,
-                    latitude: incident.location.latitude,
-                    longitude: incident.location.longitude,
-                    // description: undefined, // 'description' is not present in IncidentReport
-                    local_id: incident.id, // Using string UUID from local DB
-                    image_url: finalImageUrl,
-                    // status: 'active', // Optional: set status for Supabase if needed
-                    created_at: incident.createdAt,
-                    occurred_at: incident.timestamp // Map local timestamp to occurred_at
-                };
-
-                console.log(`[SyncManager] Inserting payload to Supabase:`, payload);
-
-                const { error: insertError } = await supabase
-                    .from('incidents')
-                    .insert([payload]);
-
-                // 3. Duplicate Handling & Completion
-                if (insertError) {
-                    console.log(`[SyncManager] Insert result: Error`, insertError);
-                    // Check for Unique Violation (23505)
-                    if (insertError.code === '23505') {
-                        console.log(`[SyncManager] Incident ${incident.id} already exists (duplicate). Marking as synced.`);
-                    } else {
-                        console.error(`[SyncManager] Failed to insert incident ${incident.id}:`, insertError);
-                        setSyncError(`Insert failed: ${insertError.message}`);
-                        continue;
-                    }
-                } else {
-                    console.log(`[SyncManager] Insert successful for ${incident.id}`);
-                }
-
-                // Success or Duplicate -> Update local Dexie record
-                console.log(`[SyncManager] Updating local DB status to 'synced' for ${incident.id}`);
-                await db.reports.update(incident.id, {
-                    status: 'synced',
-                    photo: finalImageUrl // Update photo with URL to save space
-                });
+            if (isSyncing) {
+                return;
             }
 
-            await updatePendingCount();
+            setIsSyncing(true);
+            setSyncError(null);
 
-        } catch (err: any) {
-            console.error("[SyncManager] Critical sync error:", err);
-            setSyncError(err.message || "Unknown sync error");
-        } finally {
-            setIsSyncing(false);
-            // console.log("[SyncManager] Sync process finished.");
-        }
-    }, [isSyncing, updatePendingCount]);
+            try {
+                await syncPendingIncidents({
+                    supabase,
+                    force,
+                    onProgress: (event) => {
+                        if (event.type === 'error') {
+                            setSyncError(event.error);
+                        }
+                    },
+                });
+            } catch (error) {
+                if (error instanceof DOMException && error.name === 'AbortError') {
+                    console.warn('[SyncManager] Sync aborted');
+                } else {
+                    setSyncError(error instanceof Error ? error.message : String(error));
+                }
+            } finally {
+                setIsSyncing(false);
+                await updatePendingCount();
+            }
+        },
+        [isSyncing, registerBackgroundSync, updatePendingCount],
+    );
 
     useEffect(() => {
-        // Initial count check
         updatePendingCount();
 
         const handleOnline = () => {
-            console.log("Network online, attempting sync...");
             sync();
         };
 
-        window.addEventListener('online', handleOnline);
+        const handleVisibility = () => {
+            if (!document.hidden) {
+                sync();
+            }
+        };
 
-        // Also try to sync on mount if online
+        window.addEventListener('online', handleOnline);
+        document.addEventListener('visibilitychange', handleVisibility);
+
         if (navigator.onLine) {
             sync();
         }
 
         return () => {
             window.removeEventListener('online', handleOnline);
+            document.removeEventListener('visibilitychange', handleVisibility);
         };
     }, [sync, updatePendingCount]);
 
-    return { isSyncing, pendingCount, syncError, sync };
+    useEffect(() => {
+        if (!supportsServiceWorkers) {
+            return;
+        }
+
+        const handleMessage = (event: MessageEvent) => {
+            const { type, error } = event.data || {};
+            if (type === 'incident-sync-progress' || type === 'incident-sync-complete') {
+                updatePendingCount();
+            }
+            if (type === 'incident-sync-error' && typeof error === 'string') {
+                setSyncError(error);
+            }
+        };
+
+        navigator.serviceWorker.addEventListener('message', handleMessage);
+        return () => {
+            navigator.serviceWorker.removeEventListener('message', handleMessage);
+        };
+    }, [updatePendingCount]);
+
+    useEffect(() => {
+        const handleDexieChange = async () => {
+            await updatePendingCount();
+            if (navigator.onLine) {
+                sync();
+            } else {
+                await registerBackgroundSync();
+            }
+        };
+
+        const creatingHook = (_primaryKey: string, obj: IncidentReport) => {
+            if (shouldRegisterSync(obj.status)) {
+                handleDexieChange();
+            }
+        };
+
+        const updatingHook = (mods: Partial<IncidentReport>, _primaryKey: string, obj: IncidentReport) => {
+            const nextStatus = (mods.status as IncidentReport['status']) ?? obj.status;
+            if (shouldRegisterSync(nextStatus)) {
+                handleDexieChange();
+            }
+        };
+
+        db.reports.hook('creating', creatingHook);
+        db.reports.hook('updating', updatingHook);
+
+        return () => {
+            db.reports.hook('creating').unsubscribe(creatingHook);
+            db.reports.hook('updating').unsubscribe(updatingHook);
+        };
+    }, [registerBackgroundSync, sync, updatePendingCount]);
+
+    return { isSyncing, pendingCount, syncError, sync, registerBackgroundSync };
 };
