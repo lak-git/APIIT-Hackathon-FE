@@ -1,5 +1,5 @@
-import React from 'react';
-import { Incident } from '../types/incident';
+
+import type { Incident } from '../types/incident';
 import { X, MapPin, Clock, AlertTriangle, User } from 'lucide-react';
 
 interface IncidentDetailPanelProps {
@@ -46,13 +46,12 @@ export function IncidentDetailPanel({ incident, isOpen, onClose }: IncidentDetai
             </span>
           </div>
           <h3 className="text-2xl text-[#4A1A1A] mb-1">{incident.type}</h3>
-          <div className={`inline-block px-2 py-1 rounded text-sm ${
-            incident.status === 'Active' 
-              ? 'bg-red-100 text-red-800'
-              : incident.status === 'Responding'
+          <div className={`inline-block px-2 py-1 rounded text-sm ${incident.status === 'Active'
+            ? 'bg-red-100 text-red-800'
+            : incident.status === 'Responding'
               ? 'bg-blue-100 text-blue-800'
               : 'bg-green-100 text-green-800'
-          }`}>
+            }`}>
             {incident.status}
           </div>
         </div>
@@ -60,8 +59,8 @@ export function IncidentDetailPanel({ incident, isOpen, onClose }: IncidentDetai
         {/* Image */}
         {incident.imageUrl && (
           <div className="rounded-lg overflow-hidden shadow-md">
-            <img 
-              src={incident.imageUrl} 
+            <img
+              src={incident.imageUrl}
               alt={`${incident.type} incident`}
               className="w-full h-48 object-cover"
             />

@@ -1,6 +1,5 @@
-import React from 'react';
 import { Filter, X } from 'lucide-react';
-import { IncidentType } from '../types/incident';
+import type { IncidentType } from '../types/incident';
 
 interface FilterControlsProps {
   filters: {
@@ -92,7 +91,7 @@ export function FilterControls({ filters, onFilterChange }: FilterControlsProps)
                 return { label: 'Minimal (1)', color: 'text-green-600' };
               };
               const info = getSeverityLabel(level);
-              
+
               return (
                 <label
                   key={level}

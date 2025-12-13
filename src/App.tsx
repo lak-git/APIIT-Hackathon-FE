@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { IncidentTable } from './components/IncidentTable';
 import { IncidentDetailPanel } from './components/IncidentDetailPanel';
 import { MapView } from './components/MapView';

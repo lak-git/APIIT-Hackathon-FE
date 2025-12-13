@@ -1,5 +1,4 @@
-import React from 'react';
-import { Incident, IncidentType } from '../types/incident';
+import type { Incident, IncidentType } from '../types/incident';
 import { Droplets, Mountain, Construction, Zap, AlertCircle } from 'lucide-react';
 
 interface SummaryBadgesProps {

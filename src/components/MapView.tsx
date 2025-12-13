@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Incident } from '../types/incident';
+import type { Incident } from '../types/incident';
 
 interface MapViewProps {
   incidents: Incident[];
@@ -65,7 +65,7 @@ export function MapView({ incidents, selectedIncident, onIncidentClick }: MapVie
     // Draw some "streets" to simulate a map
     ctx.strokeStyle = '#d1d5db';
     ctx.lineWidth = 3;
-    
+
     // Horizontal streets
     [0.2, 0.4, 0.6, 0.8].forEach(ratio => {
       ctx.beginPath();
@@ -208,7 +208,7 @@ export function MapView({ incidents, selectedIncident, onIncidentClick }: MapVie
         onClick={handleCanvasClick}
         onMouseMove={handleMouseMove}
       />
-      
+
       {/* Map overlay info */}
       <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg shadow-md p-3">
         <div className="text-xs text-[#6B4423] mb-2">Severity Legend</div>

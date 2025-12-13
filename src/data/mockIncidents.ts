@@ -1,4 +1,4 @@
-import { Incident } from '../types/incident';
+import type { Incident } from '../types/incident';
 
 export const mockIncidents: Incident[] = [
   {
