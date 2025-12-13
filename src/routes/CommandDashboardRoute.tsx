@@ -36,7 +36,7 @@ export default function CommandDashboardRoute() {
 
       const matchesDate = filters.dateRange
         ? incident.timestamp >= filters.dateRange.start &&
-          incident.timestamp <= filters.dateRange.end
+        incident.timestamp <= filters.dateRange.end
         : true;
 
       return matchesType && matchesSeverity && matchesDate;
@@ -75,6 +75,8 @@ export default function CommandDashboardRoute() {
 
   return (
     <section className="space-y-6 relative">
+
+
       <SummaryBadges incidents={incidents} />
 
       <FilterControls filters={filters} onFilterChange={setFilters} />
