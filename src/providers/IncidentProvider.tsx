@@ -37,8 +37,8 @@ export const mapReportToIncident = (
     severity: report.severity,
     timestamp: new Date(timestampSource),
     location: {
-      lat: report.location.latitude,
-      lng: report.location.longitude,
+      lat: Number(report.location.latitude),
+      lng: Number(report.location.longitude),
     },
     description: "Field report pending command triage.",
     imageUrl: report.photo,
@@ -119,8 +119,9 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
                   severity: Number(row.severity) as 1 | 2 | 3 | 4 | 5,
                   timestamp: new Date(row.created_at),
                   location: {
-                    lat: row.latitude,
-                    lng: row.longitude,
+                    lat: Number(row.latitude),
+                    lng: Number(row.longitude),
+                    address: row.address, // Attempt to read address from DB row
                   },
                   description: row.description || "Command Center Report",
                   imageUrl: row.image_url,
@@ -174,8 +175,8 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
               severity: Number(newRow.severity) as 1 | 2 | 3 | 4 | 5,
               timestamp: new Date(newRow.created_at),
               location: {
-                lat: newRow.latitude,
-                lng: newRow.longitude,
+                lat: Number(newRow.latitude),
+                lng: Number(newRow.longitude),
               },
               description: newRow.description || "Realtime Report",
               imageUrl: newRow.image_url,

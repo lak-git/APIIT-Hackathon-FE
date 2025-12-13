@@ -155,7 +155,7 @@ export function HomeScreen({
                         {incident.description}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                        {incident.location.address || "Unknown Location"}
+                        {incident.location.address || `${incident.location.lat.toFixed(4)}, ${incident.location.lng.toFixed(4)}`}
                       </p>
                     </div>
                   </div>
