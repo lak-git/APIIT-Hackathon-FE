@@ -4,6 +4,7 @@ import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ConnectivityBanner } from "./ConnectivityBanner";
 
+
 interface HomeScreenProps {
   isOnline: boolean;
   pendingCount: number;
