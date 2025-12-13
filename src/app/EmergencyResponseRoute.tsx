@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-
 import { LoginScreen } from "./components/LoginScreen";
 import { HomeScreen } from "./components/HomeScreen";
 import { CreateIncidentScreen } from "./components/CreateIncidentScreen";
-
 import { PendingReportsScreen } from "./components/PendingReportsScreen";
-
 import { useAuth } from "../providers/AuthProvider";
 import { useIncidentData } from "../providers/IncidentProvider";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
@@ -16,86 +13,52 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, type IncidentReport } from "../db/db";
 import { storage } from "./utils/storage";
 import { getCurrentUser, getUserProfile } from "./services/authService";
-
 import {
-  CheckCircle2,
-  Info,
-  LogIn,
-  LogOut,
-  RefreshCw,
-  Save,
-  Wifi,
-  WifiOff,
-  XCircle,
+    CheckCircle2,
+    Info,
+    LogIn,
+    LogOut,
+    RefreshCw,
+    Save,
+    Wifi,
+    WifiOff,
+    XCircle,
 } from "lucide-react";
-
 type Screen = "login" | "home" | "create" | "reports";
-
 // ✅ Maroon -> Black
 const BLACK = "#000000";
 // ✅ Beige -> White
 const WHITE = "#FFFFFF";
 const BORDER = "#E5E5E5";
-
 /**
  * One consistent toast style for the whole app:
  * - White background
  * - Black text + icon
  */
 function toastBlack(
-  message: string,
-  opts?: {
-    icon?: React.ReactNode;
-    description?: string;
-    id?: string | number;
-  },
-) {
-  toast(message, {
-    id: opts?.id,
-    description: opts?.description,
-    icon: opts?.icon,
-    position: "bottom-center",
-    style: {
-      background: WHITE,
-      color: BLACK,
-      border: `1px solid ${BORDER}`,
+    message: string,
+    opts?: {
+        icon?: React.ReactNode;
+        description?: string;
+        id?: string | number;
     },
-  });
+) {
+    toast(message, {
+        id: opts?.id,
+        description: opts?.description,
+        icon: opts?.icon,
+        position: "bottom-center",
+        style: {
+            background: WHITE,
+            color: BLACK,
+            border: `1px solid ${BORDER}`,
+        },
+    });
 }
-
-import { useGeolocation } from "./hooks/useGeolocation";
-import { calculateDistance } from "./utils/geo";
 
 // ✅ Loading toast (syncing)
 export default function EmergencyResponseRoute() {
   const { registerFieldIncident, incidents: activeIncidents } = useIncidentData();
-  const { latitude, longitude } = useGeolocation();
-  
-  // Filter for nearby incidents (last 60 min, < 1km)
-  const nearbyIncidents = useMemo(() => {
-    if (!latitude || !longitude) return [];
-
-    const now = new Date();
-    const SIXTY_MINUTES_MS = 60 * 60 * 1000;
-
-    return activeIncidents.filter((incident) => {
-      // 1. Check time (last 60 mins)
-      const timeDiff = now.getTime() - incident.timestamp.getTime();
-      const isRecent = timeDiff >= 0 && timeDiff <= SIXTY_MINUTES_MS;
-
-      if (!isRecent) return false;
-
-      // 2. Check distance (< 1km)
-      const distKm = calculateDistance(
-        latitude,
-        longitude,
-        incident.location.lat,
-        incident.location.lng
-      );
-      
-      return distKm <= 1.0;
-    });
-  }, [activeIncidents, latitude, longitude]);
   const [currentScreen, setCurrentScreen] = useState<Screen>("login");
   const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
 
@@ -368,7 +331,6 @@ export default function EmergencyResponseRoute() {
           onViewReports={() => setCurrentScreen("reports")}
           onLogout={handleLogout}
           remoteIncidents={activeIncidents}
-          nearbyIncidents={nearbyIncidents}
         />
       )}
 

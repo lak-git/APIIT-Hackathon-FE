@@ -1,14 +1,12 @@
 import { useState } from "react";
 import { Shield, Eye, EyeOff, ChevronDown } from "lucide-react";
-import { signup, login } from "../services/authService";
-
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card } from "./ui/card";
 
 interface LoginScreenProps {
-  onLogin: (email: string, password: string) => void;
+  onLogin: (email: string, password: string) => Promise<void>;
 }
 
 export function LoginScreen({ onLogin }: LoginScreenProps) {
@@ -33,12 +31,8 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     setIsLoading(true);
 
     try {
-      if (isLogin) {
-        await login({ email, password });
-      } else {
-        await signup({ email, password });
-      }
-      onLogin(email, password);
+      // Auth is handled by AuthProvider via onLogin prop
+      await onLogin(email, password);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {

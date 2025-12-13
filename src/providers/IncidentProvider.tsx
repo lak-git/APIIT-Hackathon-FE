@@ -21,7 +21,6 @@ interface IncidentContextValue {
 
 const IncidentContext = createContext<IncidentContextValue | undefined>(undefined);
 
-const FALLBACK_ADDRESS = "Awaiting verified address";
 
 // Helper to map Local Dexie Report -> Incident
 export const mapReportToIncident = (
@@ -38,7 +37,6 @@ export const mapReportToIncident = (
     location: {
       lat: report.location.latitude,
       lng: report.location.longitude,
-      address: FALLBACK_ADDRESS,
     },
     description: "Field report pending command triage.",
     imageUrl: report.photo,
@@ -100,7 +98,6 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
                   location: {
                     lat: row.latitude,
                     lng: row.longitude,
-                    address: row.address || FALLBACK_ADDRESS,
                   },
                   description: row.description || "Command Center Report",
                   imageUrl: row.image_url,
@@ -150,7 +147,6 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
               location: {
                 lat: newRow.latitude,
                 lng: newRow.longitude,
-                address: newRow.address || FALLBACK_ADDRESS,
               },
               description: newRow.description || "Realtime Report",
               imageUrl: newRow.image_url,
