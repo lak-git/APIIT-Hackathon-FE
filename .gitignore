@@ -26,3 +26,4 @@ dist-ssr
 dev-dist/**
 dev-dist/sw.js
 dev-dist/registerSW.js
+dev-dist/workbox-*.js
