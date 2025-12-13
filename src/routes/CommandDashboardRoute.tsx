@@ -5,7 +5,7 @@ import { FilterControls } from "../app/components/FilterControls";
 import { MapView } from "../app/components/MapView";
 import { IncidentTable } from "../app/components/IncidentTable";
 import { IncidentDetailPanel } from "../app/components/IncidentDetailPanel";
-import { AccountApprovals } from "../app/components/AccountApprovals";
+import { AccountApprovals } from "../app/components/accountApprovals";
 
 import type { Incident } from "../types/incident";
 import { useIncidentData } from "../providers/IncidentProvider";
