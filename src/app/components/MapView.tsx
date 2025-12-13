@@ -129,11 +129,7 @@ export function MapView({ incidents, selectedIncident, onIncidentClick }: MapVie
       </div>
 
       {/* Footer hint */}
-      <div className="absolute bottom-4 left-4 z-[400] bg-white/90 backdrop-blur-sm rounded-lg shadow-md px-3 py-2 pointer-events-none">
-        <div className="text-xs text-[#6B4423]">
-          📍 Ratnapura Area • Click markers for details
-        </div>
-      </div>
+
     </div>
   );
 }
