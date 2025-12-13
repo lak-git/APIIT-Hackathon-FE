@@ -89,8 +89,8 @@ export default function CommandDashboardRoute() {
           <FilterControls filters={filters} onFilterChange={setFilters} />
 
           {/* ✅ INCIDENT AREA CARD */}
-          <div className="bg-white/90 rounded-lg shadow-md border border-[#E5D5C3] p-4 space-y-4">
-            <div className="h-[380px] rounded-lg overflow-hidden border border-[#E5D5C3]">
+          <div className="bg-white/90 rounded-lg shadow-md border border-gray-300 p-4 space-y-4">
+            <div className="h-[380px] rounded-lg overflow-hidden border border-gray-300">
               <MapView
                 incidents={filteredIncidents}
                 selectedIncident={selectedIncident}
@@ -98,7 +98,7 @@ export default function CommandDashboardRoute() {
               />
             </div>
 
-            <div className="h-[500px] rounded-lg border border-[#E5D5C3] bg-white">
+            <div className="h-[500px] rounded-lg border border-gray-300 bg-white">
               <IncidentTable
                 incidents={filteredIncidents}
                 selectedIncident={selectedIncident}
