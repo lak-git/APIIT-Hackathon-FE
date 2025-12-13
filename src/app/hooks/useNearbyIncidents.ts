@@ -32,14 +32,14 @@ export function useNearbyIncidents(incidents: Incident[]) {
         incident.location.lng
       );
       
-      const isNearby = dist <= 50.0; // Increased to 50km for debugging
+      const isNearby = dist <= 2.0; // Increased to 50km for debugging
 
       console.log(`[Nearby] ID: ${incident.id} | Time: ${incidentTime.toLocaleTimeString()} (${isRecent ? 'OK' : 'OLD'}) | Dist: ${dist.toFixed(3)}km (${isNearby ? 'OK' : 'FAR'})`);
 
       return isRecent && isNearby;
     })
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-    .slice(0, 5); // Increased limit to 5
+    .slice(0, 2); // Increased limit to 5
   }, [incidents, latitude, longitude]);
 
   return nearbyIncidents;
