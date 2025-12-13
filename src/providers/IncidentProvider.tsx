@@ -104,7 +104,7 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
                   },
                   description: row.description || "Command Center Report",
                   imageUrl: row.image_url,
-                  status: 'Active',
+                  status: row.status as any, // Use mapped status from DB
                   reportedBy: "Command Center",
                 }));
                 setRemoteIncidents(mappedRemote);
@@ -137,12 +137,12 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
         .channel('public:incidents')
         .on(
           'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'incidents' },
+          { event: '*', schema: 'public', table: 'incidents' },
           (payload) => {
+            console.log(`[IncidentProvider] Realtime Event: ${payload.eventType}`);
             const newRow = payload.new as any;
-            console.log("[IncidentProvider] Realtime Update Received:", newRow.id);
 
-            const newIncident: Incident = {
+            const mappedIncident: Incident = {
               id: newRow.id,
               type: newRow.incident_type as IncidentType,
               severity: Number(newRow.severity) as 1 | 2 | 3 | 4 | 5,
@@ -154,11 +154,18 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
               },
               description: newRow.description || "Realtime Report",
               imageUrl: newRow.image_url,
-              status: 'Active',
+              status: newRow.status as any,
               reportedBy: "Realtime Update",
             };
 
-            setRemoteIncidents((prev) => [newIncident, ...prev]);
+            setRemoteIncidents((prev) => {
+              if (payload.eventType === 'INSERT') {
+                return [mappedIncident, ...prev];
+              } else if (payload.eventType === 'UPDATE') {
+                return prev.map(inc => inc.id === mappedIncident.id ? mappedIncident : inc);
+              }
+              return prev;
+            });
           }
         )
         .subscribe();
@@ -213,6 +220,11 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resolveIncident = useCallback(async (id: string) => {
+    // Optimistic Update
+    setRemoteIncidents(prev => prev.map(inc =>
+      inc.id === id ? { ...inc, status: 'Resolved' } : inc
+    ));
+
     try {
       const { error } = await supabase
         .from('incidents')
@@ -221,9 +233,10 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
 
       if (error) {
         console.error("Failed to mark incident as done:", error);
+        // Revert on error (optional, but good practice)
+        // fetchIncidents(); // Easier to just re-fetch in this simple app context
         throw error;
       }
-      // Optimistic update could happen here, but Realtime subscription should handle it.
     } catch (e) {
       console.error("Error resolving incident:", e);
     }
