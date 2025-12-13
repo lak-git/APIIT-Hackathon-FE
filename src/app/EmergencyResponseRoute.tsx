@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { LoginScreen } from "./components/LoginScreen";
@@ -43,11 +43,36 @@ function toastMaroon(
   opts?: {
     icon?: React.ReactNode;
     description?: string;
+    id?: string | number;
   },
 ) {
   toast(message, {
+    id: opts?.id,
     description: opts?.description,
     icon: opts?.icon,
+    position: "bottom-center",
+    style: {
+      background: WHITE,
+      color: MAROON,
+      border: `1px solid ${BORDER}`,
+    },
+  });
+}
+
+// ✅ Loading toast (syncing)
+function toastMaroonLoading(
+  message: string,
+  opts?: {
+    icon?: React.ReactNode;
+    description?: string;
+    id?: string | number;
+  },
+) {
+  return toast.loading(message, {
+    id: opts?.id,
+    description: opts?.description,
+    icon: opts?.icon,
+    position: "bottom-center",
     style: {
       background: WHITE,
       color: MAROON,
@@ -64,6 +89,10 @@ export default function EmergencyResponseRoute() {
   const isOnline = useOnlineStatus();
   const { registerFieldIncident } = useIncidentData();
 
+  // ✅ Sync progress tracking (for bottom popup)
+  const syncToastIdRef = useRef<string | number | null>(null);
+  const syncPendingCountRef = useRef(0);
+
   // Icons pre-built (maroon)
   const icons = useMemo(
     () => ({
@@ -76,6 +105,7 @@ export default function EmergencyResponseRoute() {
       retry: <RefreshCw size={18} color={MAROON} />,
       online: <Wifi size={18} color={MAROON} />,
       offline: <WifiOff size={18} color={MAROON} />,
+      syncing: <RefreshCw size={18} color={MAROON} className="animate-spin" />,
     }),
     [],
   );
@@ -167,9 +197,60 @@ export default function EmergencyResponseRoute() {
     }
   };
 
+  // ✅ Start/Update/Finish bottom sync popup
+  const beginSyncPopup = (count: number) => {
+    if (count <= 0) return;
+
+    syncPendingCountRef.current += count;
+
+    if (syncToastIdRef.current == null) {
+      syncToastIdRef.current = toastMaroonLoading("Syncing reports…", {
+        icon: icons.syncing,
+        description: "Uploading your latest incident data.",
+      });
+    } else {
+      toastMaroonLoading("Syncing reports…", {
+        id: syncToastIdRef.current,
+        icon: icons.syncing,
+        description: `Uploading… ${syncPendingCountRef.current} remaining.`,
+      });
+    }
+  };
+
+  const finishOneSyncPopup = () => {
+    syncPendingCountRef.current = Math.max(0, syncPendingCountRef.current - 1);
+
+    if (syncToastIdRef.current == null) return;
+
+    if (syncPendingCountRef.current > 0) {
+      toastMaroonLoading("Syncing reports…", {
+        id: syncToastIdRef.current,
+        icon: icons.syncing,
+        description: `Uploading… ${syncPendingCountRef.current} remaining.`,
+      });
+      return;
+    }
+
+    // ✅ Completed (update same toast)
+    toastMaroon("Sync completed", {
+      id: syncToastIdRef.current,
+      icon: icons.success,
+      description: "All pending reports are up to date.",
+    });
+
+    // Clear after a moment so the next sync starts fresh
+    setTimeout(() => {
+      syncToastIdRef.current = null;
+      syncPendingCountRef.current = 0;
+    }, 1200);
+  };
+
   const syncSingleReport = async (reportId: string) => {
     const report = reports.find((r) => r.id === reportId);
     if (!report || !isOnline) return;
+
+    // ✅ Show syncing popup (1 item)
+    beginSyncPopup(1);
 
     // Update status to syncing
     await db.reports.update(reportId, { status: "syncing" });
@@ -188,9 +269,11 @@ export default function EmergencyResponseRoute() {
         toastMaroon("Report synced successfully", { icon: icons.success });
       } else {
         await db.reports.update(reportId, { status: "failed" });
-
         toastMaroon("Sync failed - will retry later", { icon: icons.error });
       }
+
+      // ✅ Mark one item done (success or fail)
+      finishOneSyncPopup();
     }, 2000);
   };
 
@@ -209,9 +292,44 @@ export default function EmergencyResponseRoute() {
       return;
     }
 
+    // ✅ Show syncing popup (bulk count)
+    beginSyncPopup(unsyncedReports.length);
+
     // Sync each report
     for (const report of unsyncedReports) {
-      syncSingleReport(report.id);
+      // IMPORTANT: syncSingleReport already calls beginSyncPopup(1),
+      // so we avoid double-counting by calling a version that DOESN'T add again.
+      // We'll directly perform the existing logic by calling syncSingleReport,
+      // but first undo the +1 it will add, then let it proceed.
+      // Simpler: call syncSingleReport but prevent double-add by not calling beginSyncPopup here per-item.
+      // We already added total above, so we should call a lightweight per-item sync.
+
+      // ---- per-item without beginSyncPopup ----
+      const reportId = report.id;
+
+      const current = reports.find((r) => r.id === reportId);
+      if (!current) {
+        finishOneSyncPopup();
+        continue;
+      }
+
+      await db.reports.update(reportId, { status: "syncing" });
+
+      setTimeout(async () => {
+        const success = Math.random() > 0.1;
+
+        if (success) {
+          const syncedReport: IncidentReport = { ...current, status: "synced" };
+          registerFieldIncident(syncedReport, storage.getUser()?.name);
+          toastMaroon("Report synced successfully", { icon: icons.success });
+        } else {
+          await db.reports.update(reportId, { status: "failed" });
+          toastMaroon("Sync failed - will retry later", { icon: icons.error });
+        }
+
+        finishOneSyncPopup();
+      }, 2000);
+      // ---- end per-item without beginSyncPopup ----
     }
   };
 
