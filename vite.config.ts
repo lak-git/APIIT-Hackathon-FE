@@ -20,7 +20,7 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         description: 'Emergency Management Dashboard',
-        theme_color: '#800020',
+        theme_color: '#F7F4F1',
         background_color: '#F7F4F1',
         display: 'standalone',
         icons: [
