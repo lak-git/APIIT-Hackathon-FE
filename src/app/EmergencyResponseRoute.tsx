@@ -14,6 +14,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, type IncidentReport } from "../db/db";
 import { useSyncManager } from "./hooks/useSyncManager";
 // Auth is handled via AuthProvider - no direct service imports needed here
+import type { SignupData } from "./services/authService";
 import {
     CheckCircle2,
     Info,
@@ -64,7 +65,7 @@ export default function EmergencyResponseRoute() {
     const [currentScreen, setCurrentScreen] = useState<Screen>("login");
     const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
 
-    const { isAuthenticated, isAdmin, isLoading, user, session, logout: authLogout, login: authLogin } = useAuth();
+    const { isAuthenticated, isAdmin, isLoading, user, session, logout: authLogout, login: authLogin, signup: authSignup } = useAuth();
     const { sync } = useSyncManager(session);
     const navigate = useNavigate();
 
@@ -127,6 +128,11 @@ export default function EmergencyResponseRoute() {
         toastBlack("Logged in successfully", { icon: icons.login });
     };
 
+    const handleSignup = async (data: SignupData) => {
+        await authSignup(data);
+        toastBlack("Account created! Please check your email to verify.", { icon: icons.success });
+    };
+
     const handleLogout = async () => {
         await authLogout();
         toastBlack("Logged out", { icon: icons.logout });
@@ -181,11 +187,10 @@ export default function EmergencyResponseRoute() {
             toastBlack("Cannot sync while offline", { icon: icons.offline });
             return;
         }
-        
         // Trigger real sync via provider
         // useSyncManager handles the logic of ignoring offline users or empty queues
-        await sync(); 
-        
+        await sync();
+
         // Optionally give feedback based on remaining count? 
         // But internal component state isn't exposed. 
         // We can just trust the toast from the useEffect or add a generic one.
@@ -212,7 +217,7 @@ export default function EmergencyResponseRoute() {
     }
 
     if (!isAuthenticated) {
-        return <LoginScreen onLogin={handleLogin} />;
+        return <LoginScreen onLogin={handleLogin} onSignup={handleSignup} />;
     }
 
     return (
