@@ -162,13 +162,13 @@ export function HomeScreen({
                         {incident.location.address || `${incident.location.lat.toFixed(4)}, ${incident.location.lng.toFixed(4)}`}
                       </p>
                     </div>
-                    
+
                     <button
                       onClick={() => setExpandedIncidentId(expandedIncidentId === incident.id ? null : incident.id)}
                       className={`
                         ml-3 p-2 rounded-lg border transition-all duration-200 flex-shrink-0
-                        ${expandedIncidentId === incident.id 
-                          ? 'bg-red-100 border-red-200 text-red-700' 
+                        ${expandedIncidentId === incident.id
+                          ? 'bg-red-100 border-red-200 text-red-700'
                           : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}
                       `}
                       title="View on Map"
@@ -178,9 +178,9 @@ export function HomeScreen({
                   </div>
 
                   {expandedIncidentId === incident.id && (
-                     <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                        <IncidentMiniMap incident={incident} />
-                     </div>
+                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                      <IncidentMiniMap incident={incident} />
+                    </div>
                   )}
                 </Card>
               ))}
@@ -190,10 +190,10 @@ export function HomeScreen({
 
         {/* Remote Active Incidents List */}
         <div>
-          <h2 className="text-lg font-semibold text-black mb-4">Active Incidents</h2>
+          <h2 className="text-lg font-semibold text-black mb-4">My Reports</h2>
           <div className="space-y-3">
             {remoteIncidents.length === 0 ? (
-              <p className="text-black/60 text-sm">No active incidents found.</p>
+              <p className="text-black/60 text-sm">No Reports found.</p>
             ) : (
               remoteIncidents.map((incident: any) => (
                 <Card key={incident.id} className="p-4 border border-black/10 shadow-sm bg-white">
