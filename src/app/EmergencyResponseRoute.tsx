@@ -12,7 +12,7 @@ import { usePWAInstallPrompt } from "./hooks/usePWAInstallPrompt";
 import { useNearbyIncidents } from "./hooks/useNearbyIncidents";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type IncidentReport } from "../db/db";
-import { storage } from "./utils/storage";
+import { useSyncManager } from "./hooks/useSyncManager";
 // Auth is handled via AuthProvider - no direct service imports needed here
 import {
     CheckCircle2,
@@ -59,12 +59,13 @@ function toastBlack(
 
 // ✅ Loading toast (syncing)
 export default function EmergencyResponseRoute() {
-    const { registerFieldIncident, incidents: activeIncidents } = useIncidentData();
+    const { incidents: activeIncidents } = useIncidentData();
     const nearbyIncidents = useNearbyIncidents(activeIncidents);
     const [currentScreen, setCurrentScreen] = useState<Screen>("login");
     const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
 
-    const { isAuthenticated, isAdmin, isLoading, user, logout: authLogout, login: authLogin } = useAuth();
+    const { isAuthenticated, isAdmin, isLoading, user, session, logout: authLogout, login: authLogin } = useAuth();
+    const { sync } = useSyncManager(session);
     const navigate = useNavigate();
 
 
@@ -114,15 +115,7 @@ export default function EmergencyResponseRoute() {
 
     useEffect(() => {
         if (isOnline) {
-            const unsyncedReports = reports.filter(
-                (r) =>
-                    r.status === "local" || r.status === "pending" || r.status === "failed",
-            );
-
-            if (unsyncedReports.length > 0) {
-                toastBlack("Online - syncing reports...", { icon: icons.online });
-                syncReports();
-            }
+            syncReports();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOnline]);
@@ -183,63 +176,29 @@ export default function EmergencyResponseRoute() {
         }
     };
 
-    const syncSingleReport = async (reportId: string) => {
-        const report = reports.find((r) => r.id === reportId);
-        if (!report || !isOnline) return;
-
-        // Update status to syncing
-        await db.reports.update(reportId, { status: "syncing" });
-
-        // Simulate API call
-        setTimeout(async () => {
-            const success = Math.random() > 0.1; // 90% success rate
-
-            if (success) {
-                const syncedReport: IncidentReport = { ...report, status: "synced" };
-
-                // React UI updates automatically via useLiveQuery
-                registerFieldIncident(syncedReport, storage.getUser()?.name);
-
-                // ✅ Report saved successfully / synced successfully
-                toastBlack("Report synced successfully", { icon: icons.success });
-            } else {
-                await db.reports.update(reportId, { status: "failed" });
-
-                toastBlack("Sync failed - will retry later", { icon: icons.error });
-            }
-        }, 2000);
-    };
-
     const syncReports = async () => {
         if (!isOnline) {
             toastBlack("Cannot sync while offline", { icon: icons.offline });
             return;
         }
-
-        const unsyncedReports = reports.filter(
-            (r) =>
-                r.status === "local" || r.status === "pending" || r.status === "failed",
-        );
-
-        if (unsyncedReports.length === 0) {
-            toastBlack("All reports are already synced", { icon: icons.success });
-            return;
-        }
-
-        // Sync each report
-        for (const report of unsyncedReports) {
-            syncSingleReport(report.id);
-        }
+        
+        // Trigger real sync via provider
+        // useSyncManager handles the logic of ignoring offline users or empty queues
+        await sync(); 
+        
+        // Optionally give feedback based on remaining count? 
+        // But internal component state isn't exposed. 
+        // We can just trust the toast from the useEffect or add a generic one.
     };
 
-    const handleRetrySync = async (reportId: string) => {
+    const handleRetrySync = async (_reportId: string) => {
         if (!isOnline) {
             toastBlack("Cannot retry while offline", { icon: icons.offline });
             return;
         }
 
         toastBlack("Retrying sync...", { icon: icons.retry });
-        syncSingleReport(reportId);
+        await sync(); // Sync all pending
     };
 
     const pendingCount = reports.filter((r) => r.status !== "synced").length;

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { db } from '../../db/db';
 import { supabase } from '../../supabaseClient';
+import type { Session } from '@supabase/supabase-js';
 
-export const useSyncManager = () => {
+export const useSyncManager = (session: Session | null) => {
     const [isSyncing, setIsSyncing] = useState(false);
     const [pendingCount, setPendingCount] = useState(0);
     const [syncError, setSyncError] = useState<string | null>(null);
@@ -24,6 +25,13 @@ export const useSyncManager = () => {
 
         if (!navigator.onLine) {
             console.log("[SyncManager] Offline, skipping sync.");
+            return;
+        }
+
+        // Check for valid session
+        // If we are in "Offline Mode" (fake session), don't try to sync yet.
+        if (!session || session.user?.id === 'offline-user') {
+            console.log("[SyncManager] No valid session or offline user. Skipping sync.");
             return;
         }
 
@@ -164,7 +172,7 @@ export const useSyncManager = () => {
             setIsSyncing(false);
             // console.log("[SyncManager] Sync process finished.");
         }
-    }, [isSyncing, updatePendingCount]);
+    }, [isSyncing, updatePendingCount, session]);
 
     useEffect(() => {
         // Initial count check
@@ -182,10 +190,15 @@ export const useSyncManager = () => {
             sync();
         }
 
+        // Trigger sync if session acts up (e.g. becomes valid after offline login)
+        if (session && session.user?.id !== 'offline-user' && navigator.onLine) {
+            sync();
+        }
+
         return () => {
             window.removeEventListener('online', handleOnline);
         };
-    }, [sync, updatePendingCount]);
+    }, [sync, updatePendingCount, session]);
 
     return { isSyncing, pendingCount, syncError, sync };
 };

@@ -53,7 +53,7 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
   const { session, isLoading, isAdmin } = useAuth();
 
   // 2. Hook for background syncing (Dexie -> Supabase)
-  const { sync } = useSyncManager();
+  const { sync } = useSyncManager(session || null);
 
   // 3. State for Remote Data (Source of Truth)
   const [remoteIncidents, setRemoteIncidents] = useState<Incident[]>([]);
@@ -72,7 +72,7 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
 
       try {
         // 0. Ensure Supabase Client is Authenticated
-        if (session?.access_token) {
+        if (session?.access_token && session.user?.id !== 'offline-user') {
           // SDK Fallback: Use Raw REST Fetch for reliable initial load
           // bypassing potential SDK WebSocket/Client state issues.
           let rawUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/incidents?select=*&order=created_at.desc`;
