@@ -50,7 +50,7 @@ export const mapReportToIncident = (
 
 export function IncidentProvider({ children }: { children: React.ReactNode }) {
 
-  const { session, isLoading, isAdmin } = useAuth();
+  const { session, isLoading, isAdmin, isAuthenticated } = useAuth();
 
   // 2. Hook for background syncing (Dexie -> Supabase)
   const { sync } = useSyncManager(session || null);
@@ -64,7 +64,11 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
   // 5. Fetch Trigger & Realtime Subscription
   useEffect(() => {
     let isMounted = true;
-    if (isLoading) return;
+    // Don't fetch until auth is complete AND user is verified/authenticated
+    if (isLoading || !isAuthenticated) {
+      console.log(`[IncidentProvider] Skipping fetch. isLoading=${isLoading}, isAuthenticated=${isAuthenticated}`);
+      return;
+    }
 
     // A. Initial Fetch (Using Hybrid approach: Prefer Raw REST if SDK is unreliable)
     const fetchIncidents = async () => {
@@ -207,7 +211,7 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
       return () => { isMounted = false; };
     }
 
-  }, [session?.access_token, isLoading, isAdmin]);
+  }, [session?.access_token, isLoading, isAdmin, isAuthenticated]);
 
   // 6. Merge Logic
   const incidents = useMemo(() => {

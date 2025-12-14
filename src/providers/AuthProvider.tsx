@@ -48,10 +48,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const cachedIsAdmin = localStorage.getItem("sb-isAdmin");
 
                 if (cachedSession && cachedUser) {
-                    setSession(JSON.parse(cachedSession));
-                    setUser(JSON.parse(cachedUser));
-                    setIsAdmin(cachedIsAdmin === "true");
-                    setIsAuthenticated(true);
+                    const parsedUser = JSON.parse(cachedUser);
+                    const parsedSession = JSON.parse(cachedSession);
+
+                    // ALWAYS check verification status before restoring session (if online)
+                    if (navigator.onLine && parsedUser.id !== 'offline-user') {
+                        console.log("[AuthProvider] Checking cached user verification status...");
+                        const profile = await getUserProfile(parsedUser.id);
+                        console.log("[AuthProvider] Cached user profile:", profile);
+
+                        if (!profile || profile.verification_status !== 'approved') {
+                            console.warn("[AuthProvider] Cached user NOT approved. Clearing session and NOT authenticating.");
+                            localStorage.removeItem("sb-session");
+                            localStorage.removeItem("sb-user");
+                            localStorage.removeItem("sb-isAdmin");
+                            // Sign out from Supabase too
+                            await supabase.auth.signOut();
+                            setIsLoading(false);
+                            return; // DO NOT SET isAuthenticated
+                        }
+
+                        // User is approved - restore session
+                        console.log("[AuthProvider] Cached user APPROVED. Restoring session.");
+                        setSession(parsedSession);
+                        setUser(parsedUser);
+                        setIsAdmin(cachedIsAdmin === "true");
+                        setIsAuthenticated(true);
+                    } else {
+                        // Offline - temporarily allow cached session
+                        console.log("[AuthProvider] Offline - allowing cached session temporarily");
+                        setSession(parsedSession);
+                        setUser(parsedUser);
+                        setIsAdmin(cachedIsAdmin === "true");
+                        setIsAuthenticated(true);
+                    }
                 }
             } catch (e) {
                 console.error("Failed to load session from cache", e);
@@ -79,15 +109,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     const { email, password } = JSON.parse(atob(pendingCreds));
                     // Check if we are already logged in with a real session that matches?
                     // Unlikely if pendingCreds exists.
-                    
+
                     const data = await apiLogin({ email, password });
                     if (data.user && data.session) {
                         console.log("[AuthProvider] Offline login synced successfully.");
-                        
+
                         // Update Profile & State
                         const profile = await getUserProfile(data.user.id);
+
+                        // Check if user is approved
+                        if (profile?.verification_status !== 'approved') {
+                            console.warn("[AuthProvider] Offline sync user is not approved. Logging out.");
+                            await apiLogout();
+                            localStorage.removeItem("sb-pending-creds");
+                            handleLogout("Account not approved");
+                            return;
+                        }
+
                         const adminStatus = profile?.is_admin || false;
-                        
+
                         setUser(data.user);
                         setSession(data.session);
                         setIsAdmin(adminStatus);
@@ -97,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         localStorage.setItem("sb-session", JSON.stringify(data.session));
                         localStorage.setItem("sb-user", JSON.stringify(data.user));
                         localStorage.setItem("sb-isAdmin", String(adminStatus));
-                        
+
                         // Clear pending
                         localStorage.removeItem("sb-pending-creds");
                         return; // Successfully synced, skip the rest of restore logic
@@ -217,8 +257,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const handleLogin = async (email: string, password: string) => {
         if (!isOnline) {
-             console.warn("[AuthProvider] Offline login initiated.");
-            
+            console.warn("[AuthProvider] Offline login initiated.");
+
             // Create Temporary Offline User
             const offlineUser: User = {
                 id: "offline-user",
@@ -261,12 +301,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data.user && data.session) {
             // 2. Fetch Profile
             const profile = await getUserProfile(data.user.id);
+            console.log("[AuthProvider] User profile:", profile);
+            console.log("[AuthProvider] verification_status:", profile?.verification_status);
 
             // 3. Check if user is approved
-            if (profile?.verification_status !== 'approved') {
-                // User is not approved - sign them out and throw error
+            if (!profile || profile.verification_status !== 'approved') {
+                // User is not approved - sign them out and reset all state
+                console.warn("[AuthProvider] User NOT approved. Signing out and resetting state. Status:", profile?.verification_status);
+
+                // Clear all auth state
+                setUser(null);
+                setSession(null);
+                setIsAdmin(false);
+                setIsAuthenticated(false);
+
+                // Clear localStorage
+                localStorage.removeItem("sb-session");
+                localStorage.removeItem("sb-user");
+                localStorage.removeItem("sb-isAdmin");
+
+                // Sign out from Supabase
                 await apiLogout();
-                throw new Error("Your account is pending approval. Please wait for an administrator to approve your account.");
+
+                // Show appropriate error message based on status
+                if (profile?.verification_status === 'rejected') {
+                    throw new Error("Your account registration was rejected. Please contact the administrator for more information.");
+                } else if (profile?.verification_status === 'pending') {
+                    throw new Error("Your account is pending approval. Please wait for an administrator to approve your account.");
+                } else {
+                    throw new Error("Your account is not authorized to access this application.");
+                }
             }
 
             const adminStatus = profile?.is_admin || false;
