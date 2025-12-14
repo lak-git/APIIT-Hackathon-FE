@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { supabase } from "../supabaseClient";
 import type { Session, User } from "@supabase/supabase-js";
 import { getUserProfile, login as apiLogin, logout as apiLogout, signup as apiSignup, type SignupData } from "../app/services/authService";
@@ -38,6 +38,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
 
     const isOnline = useOnlineStatus();
+
+    // Ref to prevent onAuthStateChange from competing with syncAuth
+    const syncInProgressRef = useRef(false);
 
     // Load from local storage on mount (Optimistic Hydration + Client Restoration)
     useEffect(() => {
@@ -98,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!isOnline) return;
 
         const syncAuth = async () => {
+            syncInProgressRef.current = true;
             const { data: { session: currentSession } } = await supabase.auth.getSession();
             const hasLocalSession = localStorage.getItem("sb-session");
 
@@ -217,10 +221,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
         };
 
-        syncAuth();
+        syncAuth().finally(() => {
+            syncInProgressRef.current = false;
+        });
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            // Skip if syncAuth is handling the auth state
+            if (syncInProgressRef.current) {
+                console.log("[AuthProvider] onAuthStateChange skipped - syncAuth in progress");
+                return;
+            }
+
             if (session) {
                 // Prevent redundant updates if session hasn't changed
                 setSession((prev) => {
