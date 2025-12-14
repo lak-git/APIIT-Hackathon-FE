@@ -109,8 +109,8 @@ export const useSyncManager = (session: Session | null) => {
                 // Mapping IncidentReport fields to Supabase incidents table
                 let payloadUserId = incident.userId;
 
-                // 🚨 Self-healing: If ID is missing or anonymous, try to get current session user
-                if (!payloadUserId || payloadUserId === "anonymous") {
+                // 🚨 Self-healing: If ID is missing or anonymous, OR is 'offline-user', try to get current session user
+                if (!payloadUserId || payloadUserId === "anonymous" || payloadUserId === "offline-user") {
                     const { data: { user } } = await supabase.auth.getUser();
                     if (user) {
                         console.log(`[SyncManager] Repaired missing userId for ${incident.id} -> ${user.id}`);

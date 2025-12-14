@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { ArrowLeft, MapPin, Camera, Clock, Save } from "lucide-react";
 import { MapContainer, TileLayer, CircleMarker, useMap } from "react-leaflet";
