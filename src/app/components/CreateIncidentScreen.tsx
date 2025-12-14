@@ -43,6 +43,21 @@ const SEVERITY_LEVELS = [
 
 type LatLng = { latitude: number; longitude: number };
 
+// Helper component to recenter map when location changes
+// Defined outside to prevent re-mounting on every parent render
+function MapRecenter({ center }: { center: LatLng }) {
+  const map = useMap();
+
+  useEffect(() => {
+    map.flyTo([center.latitude, center.longitude], 15, {
+      animate: true,
+      duration: 1.5,
+    });
+  }, [center, map]);
+
+  return null;
+}
+
 export function CreateIncidentScreen({
   isOnline,
   onBack,
@@ -66,11 +81,28 @@ export function CreateIncidentScreen({
   // Use hook loading state directly
   const locationLoading = hookLoading;
 
+  const [activeMapCenter, setActiveMapCenter] = useState<LatLng | null>(null);
+  const [centeredStatus, setCenteredStatus] = useState<'none' | 'stale' | 'fresh'>('none');
+
   useEffect(() => {
     if (latitude !== null && longitude !== null) {
-      setLocation({ latitude, longitude });
+      const newLoc = { latitude, longitude };
+      setLocation(newLoc);
+
+      // Center if:
+      // 1. We haven't centered at all.
+      // 2. We centered on stale (cached) data, but now have fresh data.
+      if (centeredStatus === 'none' || (centeredStatus === 'stale' && !isStale)) {
+        setActiveMapCenter(newLoc);
+        setCenteredStatus(isStale ? 'stale' : 'fresh');
+      }
     }
-  }, [latitude, longitude]);
+  }, [latitude, longitude, isStale, centeredStatus]);
+
+  const handleManualCapture = () => {
+    setCenteredStatus('none'); // Reset status to allow re-centering
+    captureLocation();
+  };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -113,19 +145,7 @@ export function CreateIncidentScreen({
     });
   };
 
-  // Helper component to recenter map when location changes
-  function MapRecenter({ center }: { center: LatLng }) {
-    const map = useMap();
 
-    useEffect(() => {
-      map.flyTo([center.latitude, center.longitude], 15, {
-        animate: true,
-        duration: 1.5,
-      });
-    }, [center, map]);
-
-    return null;
-  }
 
   return (
     <div className="min-h-screen flex flex-col bg-white w-full">
@@ -248,7 +268,7 @@ export function CreateIncidentScreen({
                             fillOpacity: 0.7,
                           }}
                         />
-                        <MapRecenter center={location} />
+                        <MapRecenter center={activeMapCenter || location} />
                       </MapContainer>
                     </div>
                   ) : (
@@ -277,7 +297,7 @@ export function CreateIncidentScreen({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={captureLocation}
+                    onClick={handleManualCapture}
                     className="w-full"
                   >
                     Capture Location
@@ -288,7 +308,7 @@ export function CreateIncidentScreen({
               <Button
                 type="button"
                 variant="outline"
-                onClick={captureLocation}
+                onClick={handleManualCapture}
                 className="w-full"
               >
                 Capture Location
