@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { ArrowLeft, MapPin, Camera, Clock, Save } from "lucide-react";
+import { MapContainer, TileLayer, CircleMarker, useMap } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
 
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -21,7 +23,7 @@ import { compressImage } from "../utils/imageCompressor";
 interface CreateIncidentScreenProps {
   isOnline: boolean;
   onBack: () => void;
-  onSave: (report: Omit<IncidentReport, "id" | "createdAt" | "status">) => void;
+  onSave: (report: Omit<IncidentReport, "id" | "createdAt" | "status" | "userId">) => void;
 }
 
 const INCIDENT_TYPES: IncidentReport["type"][] = [
@@ -111,23 +113,19 @@ export function CreateIncidentScreen({
     });
   };
 
-  const mapSrc = useMemo(() => {
-    if (!location) return "";
+  // Helper component to recenter map when location changes
+  function MapRecenter({ center }: { center: LatLng }) {
+    const map = useMap();
 
-    const lat = location.latitude;
-    const lon = location.longitude;
+    useEffect(() => {
+      map.flyTo([center.latitude, center.longitude], 15, {
+        animate: true,
+        duration: 1.5,
+      });
+    }, [center, map]);
 
-    const d = 0.005;
-    const left = lon - d;
-    const right = lon + d;
-    const top = lat + d;
-    const bottom = lat - d;
-
-    const bbox = `${left}%2C${bottom}%2C${right}%2C${top}`;
-    const marker = `${lat}%2C${lon}`;
-
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${marker}`;
-  }, [location]);
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-white w-full">
@@ -230,12 +228,29 @@ export function CreateIncidentScreen({
                 {/* Map preview */}
                 <div className="rounded-lg overflow-hidden border border-border bg-muted/20 relative">
                   {isOnline ? (
-                    <iframe
-                      title="Location map"
-                      src={mapSrc}
-                      className="w-full h-44"
-                      loading="lazy"
-                    />
+                    <div className="h-44 w-full relative z-0">
+                      <MapContainer
+                        center={[location.latitude, location.longitude]}
+                        zoom={15}
+                        style={{ height: "100%", width: "100%" }}
+                        zoomControl={false}
+                        attributionControl={false}
+                      >
+                        <TileLayer
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        <CircleMarker
+                          center={[location.latitude, location.longitude]}
+                          radius={8}
+                          pathOptions={{
+                            color: "#3b82f6",
+                            fillColor: "#3b82f6",
+                            fillOpacity: 0.7,
+                          }}
+                        />
+                        <MapRecenter center={location} />
+                      </MapContainer>
+                    </div>
                   ) : (
                     <div className="w-full h-44 bg-muted flex flex-col items-center justify-center text-muted-foreground text-center p-4">
                       <MapPin className="w-8 h-8 mb-2 opacity-30" />

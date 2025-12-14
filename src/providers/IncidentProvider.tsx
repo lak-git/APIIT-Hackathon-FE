@@ -16,6 +16,8 @@ interface IncidentContextValue {
   registerFieldIncident: (report: IncidentReport, reporterName?: string) => Incident;
   resetToMock: () => void;
   resolveIncident: (id: string) => Promise<void>;
+  updateIncidentStatus: (id: string, status: Incident['status']) => Promise<void>;
+  markIncidentAsRead: (id: string) => Promise<void>;
   sync: () => Promise<void>;
 }
 
@@ -35,22 +37,23 @@ export const mapReportToIncident = (
     severity: report.severity,
     timestamp: new Date(timestampSource),
     location: {
-      lat: report.location.latitude,
-      lng: report.location.longitude,
+      lat: Number(report.location.latitude),
+      lng: Number(report.location.longitude),
     },
     description: "Field report pending command triage.",
     imageUrl: report.photo,
     status: report.status === "synced" ? "Responding" : "Active",
+    isRead: false,
     reportedBy: reporterName ?? "Field Unit",
   };
 };
 
 export function IncidentProvider({ children }: { children: React.ReactNode }) {
 
-  const { session, isLoading } = useAuth();
+  const { session, isLoading, isAdmin } = useAuth();
 
   // 2. Hook for background syncing (Dexie -> Supabase)
-  const { sync } = useSyncManager();
+  const { sync } = useSyncManager(session || null);
 
   // 3. State for Remote Data (Source of Truth)
   const [remoteIncidents, setRemoteIncidents] = useState<Incident[]>([]);
@@ -69,10 +72,30 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
 
       try {
         // 0. Ensure Supabase Client is Authenticated
-        if (session?.access_token) {
+        if (session?.access_token && session.user?.id !== 'offline-user') {
           // SDK Fallback: Use Raw REST Fetch for reliable initial load
           // bypassing potential SDK WebSocket/Client state issues.
-          const rawUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/incidents?select=*&order=created_at.desc`;
+          let rawUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/incidents?select=*&order=created_at.desc`;
+
+          // ✅ Filter by User ID if not Admin
+          // We can check isAdmin from useAuth() hook which we have access to via `session` (partially)
+          // But better to use the `useAuth` hook value if possible. 
+          // However, inside useEffect we have `session`. We can check role via metadata or assuming caller logic.
+          // Since IncidentProvider consumes useAuth(), we can use the `isAdmin` boolean if we expose it or derive it.
+          // Wait, we don't have `isAdmin` in line 53 destructure. Let's add it.
+
+          // (Quick fix without changing destructure widely if needed, but better to get it)
+          // Actually, we need to check the isAdmin logic from AuthProvider.
+          // Assuming we update line 53 first.
+
+          // For now, let's assume we will update line 53 to: const { session, isLoading, isAdmin } = useAuth();
+          // And usage here:
+          if (!isAdmin) {
+            console.log(`[IncidentProvider] Filtering by user_id: ${session.user.id}`);
+            rawUrl += `&user_id=eq.${session.user.id}`;
+          } else {
+            console.log("[IncidentProvider] Admin user - fetching all incidents");
+          }
 
           try {
             console.log("[IncidentProvider] Attempting fetch via Supabase REST API...");
@@ -96,12 +119,14 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
                   severity: Number(row.severity) as 1 | 2 | 3 | 4 | 5,
                   timestamp: new Date(row.created_at),
                   location: {
-                    lat: row.latitude,
-                    lng: row.longitude,
+                    lat: Number(row.latitude),
+                    lng: Number(row.longitude),
+                    address: row.address, // Attempt to read address from DB row
                   },
                   description: row.description || "Command Center Report",
                   imageUrl: row.image_url,
                   status: row.status as any, // Use mapped status from DB
+                  isRead: row.is_read || false,
                   reportedBy: "Command Center",
                 }));
                 setRemoteIncidents(mappedRemote);
@@ -139,18 +164,24 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
             console.log(`[IncidentProvider] Realtime Event: ${payload.eventType}`);
             const newRow = payload.new as any;
 
+            // ✅ Realtime Filter: If not Admin, ignore events from other users
+            if (!isAdmin && newRow.user_id && newRow.user_id !== session?.user?.id) {
+              return;
+            }
+
             const mappedIncident: Incident = {
               id: newRow.id,
               type: newRow.incident_type as IncidentType,
               severity: Number(newRow.severity) as 1 | 2 | 3 | 4 | 5,
               timestamp: new Date(newRow.created_at),
               location: {
-                lat: newRow.latitude,
-                lng: newRow.longitude,
+                lat: Number(newRow.latitude),
+                lng: Number(newRow.longitude),
               },
               description: newRow.description || "Realtime Report",
               imageUrl: newRow.image_url,
               status: newRow.status as any,
+              isRead: newRow.is_read || false,
               reportedBy: "Realtime Update",
             };
 
@@ -158,7 +189,8 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
               if (payload.eventType === 'INSERT') {
                 return [mappedIncident, ...prev];
               } else if (payload.eventType === 'UPDATE') {
-                return prev.map(inc => inc.id === mappedIncident.id ? mappedIncident : inc);
+                // If is_read changed, merge it carefully
+                return prev.map(inc => inc.id === mappedIncident.id ? { ...mappedIncident, reportedBy: inc.reportedBy } : inc);
               }
               return prev;
             });
@@ -175,14 +207,19 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
       return () => { isMounted = false; };
     }
 
-  }, [session?.access_token, isLoading]);
+  }, [session?.access_token, isLoading, isAdmin]);
 
   // 6. Merge Logic
   const incidents = useMemo(() => {
     const merged = [...remoteIncidents];
 
     const unsyncedLocals = localReports.filter(
-      (r) => r.status === 'local' || r.status === 'pending' || r.status === 'failed'
+      (r) => {
+        const isPending = r.status === 'local' || r.status === 'pending' || r.status === 'failed';
+        const isMyReport = r.userId === session?.user?.id;
+        console.log(`[IncidentProvider] Checking local report ${r.id}: userId=${r.userId} session=${session?.user?.id} match=${isMyReport}`);
+        return isPending && isMyReport;
+      }
     );
 
     const mappedLocals = unsyncedLocals.map((r) =>
@@ -264,16 +301,84 @@ export function IncidentProvider({ children }: { children: React.ReactNode }) {
     }
   }, [session?.access_token]);
 
+  const updateIncidentStatus = useCallback(async (id: string, newStatus: Incident['status']) => {
+    // 1. Optimistic Update
+    setRemoteIncidents(prev => prev.map(inc =>
+      inc.id === id ? { ...inc, status: newStatus } : inc
+    ));
+    // If it's being marked as resolved, also remove from map view effectively by status change
+    // If dispatched, just status change.
+
+    console.log(`[IncidentProvider] Updating incident ${id} status to ${newStatus}`);
+
+    try {
+      if (!session?.access_token) {
+        console.error("[IncidentProvider] Cannot update: No session token available.");
+        return;
+      }
+
+      const updateUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/incidents?id=eq.${id}`;
+
+      const response = await fetch(updateUrl, {
+        method: 'PATCH',
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[IncidentProvider] REST Update Failed: ${response.status} ${response.statusText}`, errorText);
+        throw new Error(`Failed to update incident: ${response.status} ${errorText}`);
+      }
+    } catch (e: any) {
+      console.error("[IncidentProvider] Error updating incident:", e);
+    }
+  }, [session?.access_token]);
+
+  const markIncidentAsRead = useCallback(async (id: string) => {
+    // 1. Optimistic Update
+    setRemoteIncidents(prev => prev.map(inc =>
+      inc.id === id ? { ...inc, isRead: true } : inc
+    ));
+
+    console.log(`[IncidentProvider] Marking incident ${id} as read`);
+
+    try {
+      if (!session?.access_token) return;
+
+      const updateUrl = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/incidents?id=eq.${id}`;
+
+      await fetch(updateUrl, {
+        method: 'PATCH',
+        headers: {
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ is_read: true })
+      });
+    } catch (e: any) {
+      console.error("[IncidentProvider] Error marking as read:", e);
+    }
+  }, [session?.access_token]);
+
   const value = useMemo(
     () => ({
       incidents,
       setIncidents,
       registerFieldIncident,
       resetToMock,
-      resolveIncident,
+      resolveIncident: async (id: string) => updateIncidentStatus(id, 'Resolved'),
+      updateIncidentStatus,
+      markIncidentAsRead,
       sync
     }),
-    [incidents, registerFieldIncident, resetToMock, resolveIncident, sync],
+    [incidents, registerFieldIncident, resetToMock, resolveIncident, sync, updateIncidentStatus, markIncidentAsRead],
   );
 
   return <IncidentContext.Provider value={value}>{children}</IncidentContext.Provider>;

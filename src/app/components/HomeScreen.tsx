@@ -1,9 +1,11 @@
-import { useEffect } from "react";
-import { FileText, Plus, Shield, ChevronRight } from "lucide-react";
+import { useEffect, useState } from "react";
+import { FileText, Plus, Shield, ChevronRight, MapPin } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { ConnectivityBanner } from "./ConnectivityBanner";
+
+import { IncidentMiniMap } from "./IncidentMiniMap";
 
 interface HomeScreenProps {
   isOnline: boolean;
@@ -24,6 +26,8 @@ export function HomeScreen({
   remoteIncidents = [],
   nearbyIncidents = [],
 }: HomeScreenProps) {
+  const [expandedIncidentId, setExpandedIncidentId] = useState<string | null>(null);
+
   useEffect(() => {
     console.log(`[HomeScreen] Mounted. Incidents received: ${remoteIncidents.length}`);
   }, [remoteIncidents.length]);
@@ -142,7 +146,7 @@ export function HomeScreen({
               {nearbyIncidents.map((incident: any) => (
                 <Card key={`nearby-${incident.id}`} className="p-4 border-l-4 border-l-red-500 border-y border-r border-gray-200 shadow-sm bg-red-50/50">
                   <div className="flex justify-between items-start">
-                    <div>
+                    <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <Badge variant="outline" className="border-red-200 text-red-700 bg-red-100">
                           Within 1km
@@ -155,10 +159,29 @@ export function HomeScreen({
                         {incident.description}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
-                         {incident.location.address || "Unknown Location"}
+                        {incident.location.address || `${incident.location.lat.toFixed(4)}, ${incident.location.lng.toFixed(4)}`}
                       </p>
                     </div>
+
+                    <button
+                      onClick={() => setExpandedIncidentId(expandedIncidentId === incident.id ? null : incident.id)}
+                      className={`
+                        ml-3 p-2 rounded-lg border transition-all duration-200 flex-shrink-0
+                        ${expandedIncidentId === incident.id
+                          ? 'bg-red-100 border-red-200 text-red-700'
+                          : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}
+                      `}
+                      title="View on Map"
+                    >
+                      <MapPin className="w-5 h-5" />
+                    </button>
                   </div>
+
+                  {expandedIncidentId === incident.id && (
+                    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                      <IncidentMiniMap incident={incident} />
+                    </div>
+                  )}
                 </Card>
               ))}
             </div>
@@ -167,10 +190,10 @@ export function HomeScreen({
 
         {/* Remote Active Incidents List */}
         <div>
-          <h2 className="text-lg font-semibold text-black mb-4">Active Incidents</h2>
+          <h2 className="text-lg font-semibold text-black mb-4">My Reports</h2>
           <div className="space-y-3">
             {remoteIncidents.length === 0 ? (
-              <p className="text-black/60 text-sm">No active incidents found.</p>
+              <p className="text-black/60 text-sm">No Reports found.</p>
             ) : (
               remoteIncidents.map((incident: any) => (
                 <Card key={incident.id} className="p-4 border border-black/10 shadow-sm bg-white">
@@ -188,7 +211,18 @@ export function HomeScreen({
                         {incident.description}
                       </p>
                     </div>
-                    <div className={`w-2 h-2 rounded-full ${incident.status === 'Active' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                    <div className="flex items-center gap-2">
+                      {!incident.isRead ? (
+                        <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200">
+                          Pending
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+                          Read
+                        </Badge>
+                      )}
+                      <div className={`w-2 h-2 rounded-full ${incident.status === 'Active' ? 'bg-green-500' : 'bg-gray-400'}`} />
+                    </div>
                   </div>
                 </Card>
               ))

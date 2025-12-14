@@ -8,11 +8,13 @@ interface IncidentReport {
   location: {
     latitude: number;
     longitude: number;
+    address?: string;
   };
   timestamp: string;
   photo?: string;
   status: 'local' | 'pending' | 'syncing' | 'synced' | 'failed';
   createdAt: string;
+  userId: string;
 }
 
 class FieldResponderDB extends Dexie {

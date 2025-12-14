@@ -12,6 +12,7 @@ export interface Incident {
   };
   description: string;
   imageUrl?: string;
-  status: 'Active' | 'Responding' | 'Resolved';
+  status: 'Active' | 'Dispatched' | 'Resolved' | 'Responding';
+  isRead: boolean;
   reportedBy: string;
 }

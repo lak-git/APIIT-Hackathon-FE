@@ -71,6 +71,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const { data: { session: currentSession } } = await supabase.auth.getSession();
             const hasLocalSession = localStorage.getItem("sb-session");
 
+            // 1. Check for Pending Offline Credentials (User logged in while offline)
+            const pendingCreds = localStorage.getItem("sb-pending-creds");
+            if (pendingCreds && isOnline) {
+                console.log("[AuthProvider] Found pending offline credentials. Attempting login...");
+                try {
+                    const { email, password } = JSON.parse(atob(pendingCreds));
+                    // Check if we are already logged in with a real session that matches?
+                    // Unlikely if pendingCreds exists.
+                    
+                    const data = await apiLogin({ email, password });
+                    if (data.user && data.session) {
+                        console.log("[AuthProvider] Offline login synced successfully.");
+                        
+                        // Update Profile & State
+                        const profile = await getUserProfile(data.user.id);
+                        const adminStatus = profile?.is_admin || false;
+                        
+                        setUser(data.user);
+                        setSession(data.session);
+                        setIsAdmin(adminStatus);
+                        setIsAuthenticated(true);
+
+                        // Update Cache
+                        localStorage.setItem("sb-session", JSON.stringify(data.session));
+                        localStorage.setItem("sb-user", JSON.stringify(data.user));
+                        localStorage.setItem("sb-isAdmin", String(adminStatus));
+                        
+                        // Clear pending
+                        localStorage.removeItem("sb-pending-creds");
+                        return; // Successfully synced, skip the rest of restore logic
+                    }
+                } catch (e) {
+                    console.error("[AuthProvider] Failed to sync offline login:", e);
+                    localStorage.removeItem("sb-pending-creds");
+                    handleLogout("Offline sync failed (Invalid Credentials)");
+                    return;
+                }
+            }
+
+
 
 
             if (currentSession && hasLocalSession) {
@@ -177,7 +217,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const handleLogin = async (email: string, password: string) => {
         if (!isOnline) {
-            throw new Error("Cannot log in while offline. Please connect to the internet.");
+             console.warn("[AuthProvider] Offline login initiated.");
+            
+            // Create Temporary Offline User
+            const offlineUser: User = {
+                id: "offline-user",
+                app_metadata: {},
+                user_metadata: {},
+                aud: "authenticated",
+                created_at: new Date().toISOString(),
+                email: email,
+                phone: "",
+                role: "authenticated",
+                updated_at: new Date().toISOString()
+            };
+
+            // Simulating Session (Mock)
+            const offlineSession: Session = {
+                access_token: "offline-token",
+                token_type: "bearer",
+                expires_in: 3600,
+                refresh_token: "offline-refresh",
+                user: offlineUser,
+            };
+
+            // Store credentials for later sync (Simple Obfuscation)
+            // WARNING: This is not secure storage. In a real production app, use secure storage or token caching.
+            const encodedCreds = btoa(JSON.stringify({ email, password }));
+            localStorage.setItem("sb-pending-creds", encodedCreds);
+
+            // Update State
+            setUser(offlineUser);
+            setSession(offlineSession);
+            setIsAuthenticated(true); // Allow access
+            setIsAdmin(false); // Assume not admin offline for safety
+
+            return;
         }
 
         // 1. Api Login
