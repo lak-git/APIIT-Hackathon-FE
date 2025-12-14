@@ -13,9 +13,11 @@ import {
   Cloud,
   Thermometer,
   Map as MapIcon,
-  Sun
+  Sun,
+  Flame,
 } from "lucide-react";
 import type { Incident } from "../../types/incident";
+import { HeatmapLayer } from "./HeatmapLayer";
 import "leaflet/dist/leaflet.css";
 
 interface MapViewProps {
@@ -53,6 +55,7 @@ export function MapView({ incidents, selectedIncident, onIncidentClick }: MapVie
     wind: false,
   });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [heatmapEnabled, setHeatmapEnabled] = useState(false);
 
   useEffect(() => {
     if (!API_KEY) {
@@ -152,7 +155,29 @@ export function MapView({ incidents, selectedIncident, onIncidentClick }: MapVie
 
         <MapUpdater selectedIncident={selectedIncident} />
 
-        {incidents.map((incident) => {
+        {/* Heatmap Layer */}
+        {heatmapEnabled && (
+          <HeatmapLayer
+            points={incidents.map((i) => [
+              i.location.lat,
+              i.location.lng,
+              i.severity / 5, // Normalize severity to 0-1 intensity
+            ])}
+            radius={30}
+            blur={20}
+            max={1.0}
+            gradient={{
+              0.0: '#22c55e',
+              0.25: '#3b82f6',
+              0.5: '#eab308',
+              0.75: '#f97316',
+              1.0: '#dc2626',
+            }}
+          />
+        )}
+
+        {/* Incident Markers (hidden when heatmap is enabled) */}
+        {!heatmapEnabled && incidents.map((incident) => {
           const { color, radius } = getSeverityStyles(incident.severity);
 
           return (
@@ -238,6 +263,41 @@ export function MapView({ incidents, selectedIncident, onIncidentClick }: MapVie
                   )}
                 </button>
               </div>
+            </div>
+
+            <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-4" />
+
+            {/* Section 2: Analysis Overlays */}
+            <div className="mb-5">
+              <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 px-1">Analysis</h3>
+              <button
+                onClick={() => setHeatmapEnabled(!heatmapEnabled)}
+                className={`
+                  group flex items-center justify-between w-full p-2.5 rounded-lg border transition-all duration-200
+                  ${heatmapEnabled
+                    ? 'bg-orange-50 border-orange-200 text-orange-700 shadow-sm'
+                    : 'bg-transparent border-transparent text-gray-600 hover:bg-gray-50'
+                  }
+                `}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-1.5 rounded-md ${heatmapEnabled ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-500 group-hover:bg-white group-hover:shadow-sm'}`}>
+                    <Flame className="w-4 h-4" />
+                  </div>
+                  <span className="text-sm font-medium">Density Heatmap</span>
+                </div>
+
+                {/* Toggle Switch */}
+                <div className={`
+                  w-10 h-5 rounded-full relative transition-colors duration-300
+                  ${heatmapEnabled ? 'bg-orange-500' : 'bg-gray-200'}
+                `}>
+                  <div className={`
+                    absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-300
+                    ${heatmapEnabled ? 'translate-x-5' : 'translate-x-0'}
+                  `} />
+                </div>
+              </button>
             </div>
 
             <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent my-4" />
