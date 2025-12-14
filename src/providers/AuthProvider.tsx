@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 import type { Session, User } from "@supabase/supabase-js";
-import { getUserProfile, login as apiLogin, logout as apiLogout } from "../app/services/authService";
+import { getUserProfile, login as apiLogin, logout as apiLogout, signup as apiSignup, type SignupData } from "../app/services/authService";
 import { useOnlineStatus } from "../app/hooks/useOnlineStatus";
 import { storage } from "../app/utils/storage";
 
@@ -13,6 +13,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
     login: (email: string, password: string) => Promise<void>;
+    signup: (data: SignupData) => Promise<void>;
     logout: () => Promise<void>;
 }
 
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType>({
     isAuthenticated: false,
     isLoading: true,
     login: async () => { },
+    signup: async () => { },
     logout: async () => { },
 });
 
@@ -184,15 +186,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data.user && data.session) {
             // 2. Fetch Profile
             const profile = await getUserProfile(data.user.id);
+
+            // 3. Check if user is approved
+            if (profile?.verification_status !== 'approved') {
+                // User is not approved - sign them out and throw error
+                await apiLogout();
+                throw new Error("Your account is pending approval. Please wait for an administrator to approve your account.");
+            }
+
             const adminStatus = profile?.is_admin || false;
 
-            // 3. Update State
+            // 4. Update State
             setUser(data.user);
             setSession(data.session);
             setIsAdmin(adminStatus);
             setIsAuthenticated(true);
 
-            // 4. Cache
+            // 5. Cache
             localStorage.setItem("sb-session", JSON.stringify(data.session));
             localStorage.setItem("sb-user", JSON.stringify(data.user));
             localStorage.setItem("sb-isAdmin", String(adminStatus));
@@ -226,6 +236,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     };
 
+    const handleSignup = async (data: SignupData) => {
+        if (!isOnline) {
+            throw new Error("Cannot sign up while offline. Please connect to the internet.");
+        }
+
+        // Call signup API (creates user + profile)
+        const authData = await apiSignup(data);
+
+        if (authData.user) {
+            // Note: New users need email verification in most Supabase setups
+            // They won't have a session until verified, so we don't set isAuthenticated
+            console.log("[AuthProvider] User signed up successfully. Email verification may be required.");
+        }
+    };
+
     // Memoize the context value to prevent unnecessary re-renders
     const value = React.useMemo(() => ({
         user,
@@ -234,6 +259,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated,
         isLoading,
         login: handleLogin,
+        signup: handleSignup,
         logout: () => handleLogout("User action")
     }), [user, session, isAdmin, isAuthenticated, isLoading, isOnline]); // Added isOnline as handleLogin uses it, though handleLogin is not memoized itself (it should be)
 

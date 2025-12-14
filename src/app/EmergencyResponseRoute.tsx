@@ -13,6 +13,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { db, type IncidentReport } from "../db/db";
 import { storage } from "./utils/storage";
 // Auth is handled via AuthProvider - no direct service imports needed here
+import type { SignupData } from "./services/authService";
 import {
     CheckCircle2,
     Info,
@@ -62,7 +63,7 @@ export default function EmergencyResponseRoute() {
     const [currentScreen, setCurrentScreen] = useState<Screen>("login");
     const [installBannerDismissed, setInstallBannerDismissed] = useState(false);
 
-    const { isAuthenticated, isAdmin, isLoading, logout: authLogout, login: authLogin } = useAuth();
+    const { isAuthenticated, isAdmin, isLoading, logout: authLogout, login: authLogin, signup: authSignup } = useAuth();
     const navigate = useNavigate();
 
 
@@ -130,6 +131,11 @@ export default function EmergencyResponseRoute() {
         await authLogin(email, password);
         // Navigation is handled by the useEffect that watches isAuthenticated/isAdmin
         toastBlack("Logged in successfully", { icon: icons.login });
+    };
+
+    const handleSignup = async (data: SignupData) => {
+        await authSignup(data);
+        toastBlack("Account created! Please check your email to verify.", { icon: icons.success });
     };
 
     const handleLogout = async () => {
@@ -246,7 +252,7 @@ export default function EmergencyResponseRoute() {
     }
 
     if (!isAuthenticated) {
-        return <LoginScreen onLogin={handleLogin} />;
+        return <LoginScreen onLogin={handleLogin} onSignup={handleSignup} />;
     }
 
     return (
