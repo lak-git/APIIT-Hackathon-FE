@@ -101,7 +101,7 @@ export default function CommandDashboardRoute() {
               <span className="w-2 h-8 bg-red-600 rounded-full"></span>
               Active Operations
             </h2>
-            <div className="h-[380px] rounded-lg overflow-hidden border border-gray-300">
+            <div className="h-[500px] rounded-lg overflow-hidden border border-gray-300">
               <MapView
                 incidents={activeIncidents}
                 selectedIncident={selectedIncident}
